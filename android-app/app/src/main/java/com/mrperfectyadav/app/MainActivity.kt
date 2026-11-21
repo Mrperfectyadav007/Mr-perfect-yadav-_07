@@ -315,7 +315,45 @@ fun MrPerfectApp() {
                     }
                 }
                 item {
-                    Text("Online full-song search", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Panel)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Verified, contentDescription = null, tint = Red)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Licensed music catalog", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                            }
+                            Text(
+                                "Commercial full-track catalog integration is ready for a licensed provider, but no provider account or API credentials are connected yet. Only tracks authorized by that provider can be streamed.",
+                                color = Muted, fontSize = 12.sp
+                            )
+                            Divider(color = PanelLight)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Gavel, contentDescription = null, tint = Red)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Free legal full-length music", color = White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            }
+                            Text(
+                                "Search below for tracks marked Creative Commons or Public Domain. Check each track's license and attribution terms before reuse or sharing.",
+                                color = Muted, fontSize = 12.sp
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Red)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Your phone's MP3 files", color = White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            }
+                            Text(
+                                "Add your own audio files with the Add MP3 songs button. They play as full local tracks.",
+                                color = Muted, fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+                item {
+                    Text("Online legal full-song search", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = searchQuery,
@@ -595,8 +633,9 @@ fun MrPerfectApp() {
                         }, valueRange = 0.5f..2f)
                         Text("Equalizer and Bass Boost", color = Red, fontWeight = FontWeight.Bold)
                         Text("Use the Audio Equalizer section on the home screen. Bass Boost works when the phone audio effect is supported.", fontSize = 12.sp)
-                        Text("Playback notification includes Previous, Play/Pause and Next controls. Lock-screen display depends on Android device settings.", fontSize = 12.sp, color = Muted)
-                        Text("Online search streams full-length Creative Commons / public-domain MP3 files from Internet Archive. Mainstream commercial releases may not be available.", fontSize = 12.sp, color = Muted)
+                        Text("Playback notification includes Previous, Play/Pause and Next controls. Lock-screen display depends on Android device settings and notification permission.", fontSize = 12.sp, color = Muted)
+                        Text("Free online search is limited to tracks marked Creative Commons / Public Domain. A commercial licensed catalog needs a provider account and API credentials before it can be enabled.", fontSize = 12.sp, color = Muted)
+                        Text("Phone MP3 files play locally in full. Background playback reliability still needs a dedicated foreground playback service and device testing.", fontSize = 12.sp, color = Muted)
                         Text("About MR. PERFECT YADAV", color = Red, fontWeight = FontWeight.Bold)
                         Text("Premium red-and-black music player", fontSize = 12.sp)
                     }
