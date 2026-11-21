@@ -4,6 +4,7 @@ import android.content.Intent
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -13,8 +14,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -29,14 +33,20 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 
-private val Black = Color(0xFF090909)
-private val Panel = Color(0xFF191919)
+private val Black = Color(0xFF080808)
+private val Panel = Color(0xFF181818)
+private val PanelLight = Color(0xFF242424)
 private val Red = Color(0xFFFF3030)
 private val White = Color(0xFFF7F7F7)
+private val Muted = Color(0xFFB8B8B8)
+
+private data class LocalSong(val uri: Uri, val title: String)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,115 +59,279 @@ class MainActivity : ComponentActivity() {
 fun MrPerfectApp() {
     val context = LocalContext.current
     var showYouTube by remember { mutableStateOf(false) }
+    var songs by remember { mutableStateOf(listOf<LocalSong>()) }
+    var currentIndex by remember { mutableIntStateOf(-1) }
+    var isPlaying by remember { mutableStateOf(false) }
+    var isPreparing by remember { mutableStateOf(false) }
+    var duration by remember { mutableIntStateOf(0) }
+    var position by remember { mutableIntStateOf(0) }
+    val player = remember { MediaPlayer() }
+
+    val picker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        val added = uris.map { uri ->
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            val title = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst() && column >= 0) cursor.getString(column) else null
+            } ?: (uri.lastPathSegment ?: "Audio track")
+            LocalSong(uri, title)
+        }
+        songs = (songs + added).distinctBy { it.uri }
+    }
+
+    fun playTrack(index: Int) {
+        if (index !in songs.indices) return
+        currentIndex = index
+        isPreparing = true
+        isPlaying = false
+        position = 0
+        duration = 0
+        runCatching {
+            player.reset()
+            player.setOnPreparedListener { mp ->
+                duration = mp.duration.coerceAtLeast(0)
+                isPreparing = false
+                mp.start()
+                isPlaying = true
+            }
+            player.setOnCompletionListener {
+                if (currentIndex + 1 < songs.size) playTrack(currentIndex + 1)
+                else { isPlaying = false; position = 0 }
+            }
+            player.setOnErrorListener { _, _, _ ->
+                isPreparing = false
+                isPlaying = false
+                true
+            }
+            player.setDataSource(context, songs[index].uri)
+            player.prepareAsync()
+        }.onFailure {
+            isPreparing = false
+            isPlaying = false
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { runCatching { player.release() } }
+    }
+
+    LaunchedEffect(isPlaying, currentIndex) {
+        while (isPlaying) {
+            if (runCatching { player.isPlaying }.getOrDefault(false)) {
+                position = runCatching { player.currentPosition }.getOrDefault(position)
+            }
+            delay(500)
+        }
+    }
 
     MaterialTheme(colorScheme = darkColorScheme(
-        primary = Red,
-        background = Black,
-        surface = Panel,
-        onPrimary = White,
-        onBackground = White,
-        onSurface = White
+        primary = Red, background = Black, surface = Panel,
+        onPrimary = White, onBackground = White, onSurface = White
     )) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(Color(0xFF260707), Black, Black)))
+        Column(
+            Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF300909), Black, Black)))
         ) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
-                    Text("MR. PERFECT YADAV", color = Red, fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
-                    Spacer(Modifier.height(18.dp))
-                    Text("WELCOME", color = White, fontSize = 34.sp, fontWeight = FontWeight.Black)
-                    Text("Your personal digital world", color = Color.LightGray, fontSize = 15.sp)
-                }
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Panel),
-                        shape = RoundedCornerShape(24.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            Modifier.fillMaxWidth().padding(22.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Box(
-                                Modifier.size(92.dp).background(
-                                    Brush.linearGradient(listOf(Red, Color(0xFF5A0909))),
-                                    RoundedCornerShape(50)
-                                ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("MPY", color = White, fontSize = 27.sp, fontWeight = FontWeight.Black)
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            Text("MR. PERFECT YADAV", color = White, fontSize = 21.sp,
-                                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                            Text("Official Personal App", color = Color.LightGray, fontSize = 13.sp)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("MR. PERFECT YADAV", color = Red, fontSize = 12.sp,
+                                fontWeight = FontWeight.Black, letterSpacing = 2.5.sp)
+                            Text("Good music. Good mood.", color = White, fontSize = 25.sp,
+                                fontWeight = FontWeight.ExtraBold)
+                        }
+                        Box(Modifier.size(44.dp).background(Red, CircleShape), contentAlignment = Alignment.Center) {
+                            Text("MPY", color = White, fontSize = 13.sp, fontWeight = FontWeight.Black)
                         }
                     }
                 }
-                item { SectionTitle("MY FEATURES") }
                 item {
-                    FeatureCard("Telegram Bot", "Open your official Telegram bot", Icons.Default.Send) {
-                        openLink(context, "https://t.me/Mr_perfect_yadav_07robot")
+                    Card(
+                        modifier = Modifier.fillMaxWidth().height(172.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                    ) {
+                        Box(
+                            Modifier.fillMaxSize().background(
+                                Brush.linearGradient(listOf(Color(0xFF9E1515), Color(0xFF3A0808), Color(0xFF171717)))
+                            ).padding(20.dp)
+                        ) {
+                            Column(Modifier.align(Alignment.CenterStart)) {
+                                Text("YOUR MUSIC, YOUR WORLD", color = White.copy(alpha = .8f),
+                                    fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                                Spacer(Modifier.height(7.dp))
+                                Text("Play what you love.", color = White, fontSize = 23.sp, fontWeight = FontWeight.Black)
+                                Spacer(Modifier.height(12.dp))
+                                Button(
+                                    onClick = { picker.launch(arrayOf("audio/*")) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = White, contentColor = Black),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                ) {
+                                    Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(17.dp))
+                                    Spacer(Modifier.width(7.dp))
+                                    Text("Add MP3 songs", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Icon(Icons.Default.MusicNote, contentDescription = null,
+                                tint = White.copy(alpha = .16f), modifier = Modifier.size(112.dp).align(Alignment.CenterEnd))
+                        }
                     }
                 }
                 item {
-                    FeatureCard("YouTube Music Player", "Search and play videos inside this app", Icons.Default.PlayCircle) {
-                        showYouTube = true
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Explore online", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f))
+                        Text("ONLINE", color = Red, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                    }
+                    Card(
+                        onClick = { showYouTube = true },
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Panel)
+                    ) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(52.dp).background(Color(0xFF3A1010), RoundedCornerShape(14.dp)),
+                                contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Public, contentDescription = null, tint = Red, modifier = Modifier.size(28.dp))
+                            }
+                            Column(Modifier.weight(1f).padding(horizontal = 13.dp)) {
+                                Text("Search online music", color = White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("Open music search inside the app", color = Muted, fontSize = 12.sp)
+                            }
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Red)
+                        }
                     }
                 }
                 item {
-                    FeatureCard("AI Assistant", "Open ChatGPT and start an AI conversation", Icons.Default.AutoAwesome) {
-                        openLink(context, "https://chatgpt.com/")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Your Library", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f))
+                        IconButton(onClick = { picker.launch(arrayOf("audio/*")) }) {
+                            Icon(Icons.Default.Add, contentDescription = "Add songs", tint = Red)
+                        }
                     }
                 }
-                item {
-                    FeatureCard("Chat & Community", "Visit the official Telegram channel", Icons.Default.Groups) {
-                        openLink(context, "https://t.me/RADHEY_RADHEY_07")
+                if (songs.isEmpty()) {
+                    item {
+                        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
+                            Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.LibraryMusic, contentDescription = null, tint = Red, modifier = Modifier.size(38.dp))
+                                Spacer(Modifier.height(8.dp))
+                                Text("No songs added yet", color = White, fontWeight = FontWeight.Bold)
+                                Text("Add MP3 files from your phone to start listening.", color = Muted,
+                                    fontSize = 12.sp, textAlign = TextAlign.Center)
+                            }
+                        }
+                    }
+                } else {
+                    itemsIndexed(songs) { index, song ->
+                        Row(
+                            Modifier.fillMaxWidth().background(
+                                if (index == currentIndex) Color(0xFF351010) else Panel,
+                                RoundedCornerShape(14.dp)
+                            ).clickable { playTrack(index) }.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(Modifier.size(44.dp).background(PanelLight, RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = Red)
+                            }
+                            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                                Text(song.title, color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("Local audio", color = Muted, fontSize = 11.sp)
+                            }
+                            Icon(
+                                if (index == currentIndex && isPlaying) Icons.Default.GraphicEq else Icons.Default.PlayArrow,
+                                contentDescription = "Play", tint = Red
+                            )
+                        }
                     }
                 }
+                item { Text("Connect", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                item { SmallLinkCard("Telegram Bot", "t.me/Mr_perfect_yadav_07robot", Icons.Default.Send) {
+                    openLink(context, "https://t.me/Mr_perfect_yadav_07robot")
+                } }
+                item { SmallLinkCard("Official Channel", "t.me/RADHEY_RADHEY_07", Icons.Default.Groups) {
+                    openLink(context, "https://t.me/RADHEY_RADHEY_07")
+                } }
+                item { SmallLinkCard("Instagram", "@mr_perfect_yadav_07", Icons.Default.CameraAlt) {
+                    openLink(context, "https://instagram.com/mr_perfect_yadav_07")
+                } }
                 item {
-                    FeatureCard("Instagram Profile", "Follow the official profile", Icons.Default.CameraAlt) {
-                        openLink(context, "https://instagram.com/mr_perfect_yadav_07")
-                    }
+                    Text("MR. PERFECT YADAV • MUSIC PLAYER", color = Color.Gray, fontSize = 10.sp,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), textAlign = TextAlign.Center)
                 }
-                item {
-                    FeatureCard("About App", "Version 1.2 • MR. PERFECT YADAV", Icons.Default.Info) {
-                        openLink(context, "https://mrperfectyadav007.github.io/mr-perfect-yadav-_07/")
+            }
+
+            if (currentIndex in songs.indices) {
+                Column(Modifier.fillMaxWidth().background(Color(0xFF202020)).padding(horizontal = 14.dp, vertical = 8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.MusicNote, contentDescription = null, tint = Red, modifier = Modifier.size(30.dp))
+                        Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                            Text(songs[currentIndex].title, color = White, fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(if (isPreparing) "Loading..." else "MR. PERFECT YADAV MUSIC",
+                                color = Muted, fontSize = 10.sp)
+                        }
+                        IconButton(onClick = { if (currentIndex > 0) playTrack(currentIndex - 1) }) {
+                            Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = White)
+                        }
+                        IconButton(onClick = {
+                            if (isPreparing) return@IconButton
+                            if (isPlaying) {
+                                runCatching { player.pause() }
+                                isPlaying = false
+                            } else {
+                                runCatching {
+                                    if (duration > 0) player.start()
+                                    else playTrack(currentIndex)
+                                }
+                                isPlaying = true
+                            }
+                        }) {
+                            Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = "Play pause", tint = Red, modifier = Modifier.size(30.dp))
+                        }
+                        IconButton(onClick = { if (currentIndex + 1 < songs.size) playTrack(currentIndex + 1) }) {
+                            Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = White)
+                        }
                     }
-                }
-                item {
-                    Text("Made with ❤️ for MR. PERFECT YADAV",
-                        color = Color.Gray, fontSize = 12.sp,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
-                        textAlign = TextAlign.Center)
+                    if (duration > 0) {
+                        Slider(
+                            value = position.coerceIn(0, duration).toFloat(),
+                            onValueChange = { position = it.toInt() },
+                            onValueChangeFinished = { runCatching { player.seekTo(position) } },
+                            valueRange = 0f..duration.toFloat(),
+                            modifier = Modifier.height(22.dp),
+                            colors = SliderDefaults.colors(thumbColor = Red, activeTrackColor = Red)
+                        )
+                    }
                 }
             }
         }
-        if (showYouTube) {
-            YouTubePlayerDialog(onDismiss = { showYouTube = false })
-        }
+        if (showYouTube) YouTubePlayerDialog(onDismiss = { showYouTube = false })
     }
 }
 
 @Composable
 private fun YouTubePlayerDialog(onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(modifier = Modifier.fillMaxSize().background(Black)) {
+        Column(Modifier.fillMaxSize().background(Black)) {
             Row(
-                modifier = Modifier.fillMaxWidth().background(Panel).padding(horizontal = 12.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().background(Panel).padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = White)
                 }
-                Text("YouTube Music", color = White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Online Music", color = White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
@@ -174,22 +348,18 @@ private fun YouTubePlayerDialog(onDismiss: () -> Unit) {
                                 if (scheme == "http" || scheme == "https") return false
                                 if (scheme == "intent") {
                                     val fallback = runCatching {
-                                        Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
-                                            .getStringExtra("browser_fallback_url")
+                                        Intent.parseUri(url, Intent.URI_INTENT_SCHEME).getStringExtra("browser_fallback_url")
                                     }.getOrNull()
                                     if (!fallback.isNullOrBlank()) {
                                         val fallbackScheme = Uri.parse(fallback).scheme
                                         if (fallbackScheme == "http" || fallbackScheme == "https") view.loadUrl(fallback)
                                     }
                                 }
-                                // Block intent://, vnd.youtube://, market:// and other app hand-offs.
                                 return true
                             }
-
                             @Suppress("DEPRECATION")
                             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
                                 keepInsideApp(view, url)
-
                             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
                                 keepInsideApp(view, request.url.toString())
                         }
@@ -209,32 +379,19 @@ private fun YouTubePlayerDialog(onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun SectionTitle(title: String) {
-    Text(title, color = Red, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-}
-
-@Composable
-private fun FeatureCard(
+private fun SmallLinkCard(
     title: String,
     subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Panel)
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(17.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = null, tint = Red, modifier = Modifier.size(28.dp))
-            Spacer(Modifier.width(15.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, color = White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text(subtitle, color = Color.LightGray, fontSize = 12.sp)
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(15.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
+        Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = Red, modifier = Modifier.size(25.dp))
+            Column(Modifier.weight(1f).padding(horizontal = 13.dp)) {
+                Text(title, color = White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(subtitle, color = Muted, fontSize = 11.sp)
             }
             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Red)
         }
@@ -242,7 +399,5 @@ private fun FeatureCard(
 }
 
 private fun openLink(context: android.content.Context, url: String) {
-    runCatching {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-    }
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
 }
