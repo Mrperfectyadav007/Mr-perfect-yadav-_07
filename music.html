@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101710"><title>MR. PERFECT YADAV MUSIC</title>
+<style>
+:root{color-scheme:dark;--bg:#080d09;--panel:#141d16;--green:#1ed760;--muted:#a5b2a8}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#173d24 0,transparent 35%),var(--bg);color:#fff;font:15px system-ui,Arial;min-height:100vh;padding-bottom:120px}
+header{padding:24px 18px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px}h1{font-size:20px;margin:0;font-weight:900;letter-spacing:.5px}header small{color:var(--green);display:block;margin-top:4px;letter-spacing:2px}
+main{max-width:760px;margin:auto;padding:0 16px}.tabs{display:flex;gap:8px;margin:8px 0 18px}.tab,button{border:0;border-radius:25px;padding:11px 16px;background:#253329;color:#fff;font-weight:700;cursor:pointer}.tab.active,.primary{background:var(--green);color:#071008}
+h2{font-size:23px;margin:18px 0 6px}.sub{color:var(--muted);margin:0 0 16px}.search{display:flex;gap:8px}.search input{min-width:0;flex:1;background:#18231b;border:1px solid #334438;color:white;padding:14px;border-radius:25px;font-size:15px;outline:none}
+.panel{background:linear-gradient(145deg,#17231a,#101711);border:1px solid #2a3b2e;border-radius:18px;padding:16px;margin:14px 0}.row{display:flex;align-items:center;gap:12px}.cover{width:54px;height:54px;border-radius:10px;background:linear-gradient(135deg,#1ed760,#154b2a);display:grid;place-items:center;font-size:24px;flex-shrink:0}.info{min-width:0;flex:1}.info b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.info small{color:var(--muted)}
+.song{padding:10px 0;border-bottom:1px solid #2a362d}.song:last-child{border:0}.song button{padding:9px 13px}
+#localFiles{display:none}.upload{display:inline-block;background:#26372b;padding:12px 16px;border-radius:25px;font-weight:700;color:#fff;cursor:pointer}
+#now{position:fixed;bottom:0;left:0;right:0;background:rgba(12,20,14,.97);backdrop-filter:blur(16px);border-top:1px solid #314334;padding:12px 16px calc(12px + env(safe-area-inset-bottom));z-index:5}.nowinner{max-width:760px;margin:auto}.progress{width:100%;accent-color:var(--green)}.controls{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:8px}.controls button{font-size:19px;background:transparent}.controls .play{background:var(--green);color:#071008;width:48px;height:48px;border-radius:50%;font-size:21px}.time{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+.note{font-size:12px;color:var(--muted);line-height:1.5}.hidden{display:none!important}
+</style></head>
+<body>
+<header><div><h1>MR. PERFECT YADAV</h1><small>MUSIC PLAYER</small></div><span style="font-size:26px">♫</span></header>
+<main>
+<div class="tabs"><button class="tab active" id="onlineTab">Online</button><button class="tab" id="localTab">My MP3</button></div>
+<section id="online">
+<h2>What do you want to play?</h2><p class="sub">Online audio • Free & openly available recordings</p>
+<div class="search"><input id="query" placeholder="Song, artist ya music search karein"><button class="primary" id="searchBtn">Search</button></div>
+<div id="results" class="panel"><p class="note">Search karke available online recordings dekhein. Results Internet Archive ke audio collection se aate hain; har gaana Spotify catalog ka hissa nahi hota.</p></div>
+</section>
+<section id="local" class="hidden">
+<h2>Your music library</h2><p class="sub">Phone se MP3 files select karke app ke andar play karein.</p>
+<label class="upload" for="localFiles">＋ Choose MP3 files</label><input id="localFiles" type="file" accept="audio/*,.mp3" multiple>
+<div id="localList" class="panel"><p class="note">Abhi koi local song select nahi kiya gaya.</p></div>
+</section>
+<p class="note">Online playback ke liye internet zaroori hai. Local MP3 files aapke phone par hi rehti hain. Sirf wahi audio stream karein jiske liye aapke paas sunne ka adhikar ho.</p>
+</main>
+<div id="now"><div class="nowinner"><div class="row"><div class="cover">♫</div><div class="info"><b id="trackTitle">No song selected</b><small id="trackArtist">Choose online music or local MP3</small></div></div><audio id="audio" preload="metadata"></audio><input class="progress" id="seek" type="range" min="0" max="100" value="0"><div class="time"><span id="elapsed">0:00</span><span id="duration">0:00</span></div><div class="controls"><button id="back" aria-label="Back">↺</button><button class="play" id="toggle" aria-label="Play">▶</button><button id="forward" aria-label="Forward">⟳</button></div></div></div>
+<script>
+const $=id=>document.getElementById(id), audio=$('audio');let playlist=[],index=-1,localUrls=[];
+function fmt(s){if(!Number.isFinite(s))return'0:00';return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0')}
+function playTrack(item){$('trackTitle').textContent=item.title;$('trackArtist').textContent=item.artist||'Unknown artist';audio.src=item.url;audio.play().then(()=>$('toggle').textContent='Ⅱ').catch(()=>$('toggle').textContent='▶')}
+function setTab(which){$('online').classList.toggle('hidden',which!=='online');$('local').classList.toggle('hidden',which!=='local');$('onlineTab').classList.toggle('active',which==='online');$('localTab').classList.toggle('active',which==='local')}
+$('onlineTab').onclick=()=>setTab('online');$('localTab').onclick=()=>setTab('local');
+function showSongs(items,target){target.innerHTML='';if(!items.length){target.textContent='Koi result nahi mila. Dusra search try karein.';return}items.forEach((s,i)=>{let div=document.createElement('div');div.className='row song';div.innerHTML='<div class="cover">♫</div><div class="info"><b></b><small></small></div><button class="primary">▶ Play</button>';div.querySelector('b').textContent=s.title;div.querySelector('small').textContent=s.artist||'Audio recording';div.querySelector('button').onclick=()=>{playlist=items;index=i;playTrack(s)};target.appendChild(div)})}
+$('searchBtn').onclick=async()=>{let q=$('query').value.trim();if(!q)return;let box=$('results');box.textContent='Searching online audio…';$('searchBtn').disabled=true;try{let url='https://archive.org/advancedsearch.php?q='+encodeURIComponent('mediatype:audio AND ('+q+')')+'&fl[]=identifier,title,creator&rows=25&page=1&output=json';let r=await fetch(url);if(!r.ok)throw Error('Search service unavailable');let data=await r.json();let docs=data.response?.docs||[];let tracks=await Promise.all(docs.slice(0,12).map(async d=>{try{let m=await fetch('https://archive.org/metadata/'+encodeURIComponent(d.identifier));let j=await m.json();let f=(j.files||[]).find(x=>x.name&&/\.mp3$/i.test(x.name)&&!x.name.includes('__ia_thumb'));if(!f)return null;return{title:d.title||f.name,artist:Array.isArray(d.creator)?d.creator.join(', '):(d.creator||'Internet Archive'),url:'https://archive.org/download/'+encodeURIComponent(d.identifier)+'/'+f.name}}catch(e){return null}}));showSongs(tracks.filter(Boolean),box)}catch(e){box.textContent='Online search abhi nahi chal pa raha. Internet connection check karke dobara try karein.'}finally{$('searchBtn').disabled=false}};
+$('query').addEventListener('keydown',e=>{if(e.key==='Enter')$('searchBtn').click()});
+$('localFiles').onchange=e=>{localUrls.forEach(URL.revokeObjectURL);localUrls=[];let files=[...e.target.files];let tracks=files.filter(f=>f.type.startsWith('audio/')||/\.mp3$/i.test(f.name)).map(f=>{let url=URL.createObjectURL(f);localUrls.push(url);return{title:f.name.replace(/\.[^.]+$/,''),artist:'On your device',url}});showSongs(tracks,$('localList'));playlist=tracks;index=-1};
+$('toggle').onclick=()=>{if(!audio.src)return;if(audio.paused)audio.play();else audio.pause()};
+audio.onplay=()=>$('toggle').textContent='Ⅱ';audio.onpause=()=>$('toggle').textContent='▶';audio.ontimeupdate=()=>{$('seek').value=audio.duration?audio.currentTime/audio.duration*100:0;$('elapsed').textContent=fmt(audio.currentTime);$('duration').textContent=fmt(audio.duration)};
+$('seek').oninput=()=>{if(audio.duration)audio.currentTime=audio.duration*Number($('seek').value)/100};
+$('back').onclick=()=>{if(audio.src)audio.currentTime=0};$('forward').onclick=()=>{if(index>=0&&index<playlist.length-1){index++;playTrack(playlist[index])}};audio.onended=()=>{if(index>=0&&index<playlist.length-1){index++;playTrack(playlist[index])}else $('toggle').textContent='▶'};
+</script></body></html>
