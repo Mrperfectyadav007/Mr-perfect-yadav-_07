@@ -2,6 +2,7 @@ package com.mrperfectyadav.app
 
 import android.content.Intent
 import android.media.MediaPlayer
+import android.media.audiofx.Equalizer
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -12,10 +13,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -69,6 +72,9 @@ fun MrPerfectApp() {
     var isPreparing by remember { mutableStateOf(false) }
     var duration by remember { mutableIntStateOf(0) }
     var position by remember { mutableIntStateOf(0) }
+    var equalizer by remember { mutableStateOf<Equalizer?>(null) }
+    var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
+    var selectedEqPreset by remember { mutableIntStateOf(-1) }
     val player = remember { MediaPlayer() }
 
     val picker = rememberLauncherForActivityResult(
@@ -96,6 +102,18 @@ fun MrPerfectApp() {
             player.reset()
             player.setOnPreparedListener { mp ->
                 duration = mp.duration.coerceAtLeast(0)
+                runCatching { equalizer?.release() }
+                runCatching {
+                    val effect = Equalizer(0, mp.audioSessionId)
+                    effect.enabled = true
+                    equalizer = effect
+                    eqPresetNames = (0 until effect.numberOfPresets.toInt()).map { effect.getPresetName(it.toShort()).toString() }
+                    selectedEqPreset = -1
+                }.onFailure {
+                    equalizer = null
+                    eqPresetNames = emptyList()
+                    selectedEqPreset = -1
+                }
                 isPreparing = false
                 mp.start()
                 isPlaying = true
@@ -118,7 +136,10 @@ fun MrPerfectApp() {
     }
 
     DisposableEffect(Unit) {
-        onDispose { runCatching { player.release() } }
+        onDispose {
+            runCatching { equalizer?.release() }
+            runCatching { player.release() }
+        }
     }
 
     LaunchedEffect(isPlaying, currentIndex) {
@@ -265,6 +286,44 @@ fun MrPerfectApp() {
                         }
                     }
                     Text("Online catalog previews • playback stays in this app", color = Muted, fontSize = 10.sp)
+                }
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Panel)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Equalizer, contentDescription = null, tint = Red)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Audio Equalizer", color = White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text(
+                                if (eqPresetNames.isEmpty()) "Play a song to check equalizer support on this device."
+                                else "Choose a sound preset. Availability depends on your phone.",
+                                color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+                            )
+                            if (eqPresetNames.isNotEmpty()) {
+                                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                                    eqPresetNames.forEachIndexed { index, preset ->
+                                        FilterChip(
+                                            selected = selectedEqPreset == index,
+                                            onClick = {
+                                                runCatching {
+                                                    equalizer?.usePreset(index.toShort())
+                                                    selectedEqPreset = index
+                                                }
+                                            },
+                                            label = { Text(preset) },
+                                            modifier = Modifier.padding(end = 6.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Text("Dolby Atmos is available only on supported phones; this uses Android's built-in equalizer.", color = Muted, fontSize = 10.sp)
+                        }
+                    }
                 }
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
