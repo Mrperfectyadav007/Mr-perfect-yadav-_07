@@ -1,6 +1,7 @@
 package com.mrperfectyadav.app
 
 import android.content.Intent
+import androidx.core.content.ContextCompat
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.app.DownloadManager
@@ -91,6 +92,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        stopService(Intent(this, MusicPlaybackService::class.java))
         NotificationController.cancel(this)
         mediaSession?.release()
         mediaSession = null
@@ -150,6 +152,11 @@ fun MrPerfectApp() {
 
     fun playTrack(index: Int) {
         if (index !in songs.indices) return
+        val serviceIntent = Intent(context, MusicPlaybackService::class.java).apply {
+            action = MusicPlaybackService.ACTION_UPDATE
+            putExtra(MusicPlaybackService.EXTRA_TITLE, songs[index].title)
+        }
+        runCatching { ContextCompat.startForegroundService(context, serviceIntent) }
         currentIndex = index
         isPreparing = true
         isPlaying = false
