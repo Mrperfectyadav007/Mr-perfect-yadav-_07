@@ -252,11 +252,10 @@ fun MrPerfectApp() {
                                     searchMessage = "Searching songs..."
                                     val found = withContext(Dispatchers.IO) {
                                         runCatching {
-                                            val query = q.split(Regex("\\s+")).filter { it.isNotBlank() }.joinToString(" AND ") { term ->
-                                                "title:\\\"$term\\\""
-                                            }
-                                            val encoded = URLEncoder.encode("mediatype:audio AND ($query)", "UTF-8")
-                                            val searchUrl = URL("https://archive.org/advancedsearch.php?q=$encoded&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=licenseurl&rows=15&page=1&output=json")
+                                            val safeQuery = q.replace("\\", " ").replace("\"", " ").trim()
+                                            val archiveQuery = "mediatype:audio AND licenseurl:http* AND title:\"$safeQuery\""
+                                            val encoded = URLEncoder.encode(archiveQuery, "UTF-8")
+                                            val searchUrl = URL("https://archive.org/advancedsearch.php?q=$encoded&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=licenseurl&rows=40&page=1&sort[]=downloads+desc&output=json")
                                             val connection = (searchUrl.openConnection() as HttpURLConnection)
                                             connection.connectTimeout = 15000
                                             connection.readTimeout = 20000
