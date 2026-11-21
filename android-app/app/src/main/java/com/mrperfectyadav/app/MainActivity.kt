@@ -252,7 +252,6 @@ fun MrPerfectApp() {
                                     searchMessage = "Searching songs..."
                                     val found = withContext(Dispatchers.IO) {
                                         runCatching {
-                                            val encoded = URLEncoder.encode(q, "UTF-8")
                                             val query = q.split(Regex("\\s+")).filter { it.isNotBlank() }.joinToString(" AND ") { term ->
                                                 "title:\\\"$term\\\""
                                             }
