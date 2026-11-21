@@ -3,6 +3,7 @@ package com.mrperfectyadav.app
 import android.content.Intent
 import android.media.MediaPlayer
 import android.media.audiofx.Equalizer
+import android.media.audiofx.BassBoost
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -76,6 +77,11 @@ fun MrPerfectApp() {
     var duration by remember { mutableIntStateOf(0) }
     var position by remember { mutableIntStateOf(0) }
     var equalizer by remember { mutableStateOf<Equalizer?>(null) }
+    var bassBoost by remember { mutableStateOf<BassBoost?>(null) }
+    var bassBoostEnabled by remember { mutableStateOf(false) }
+    var autoPlayNext by remember { mutableStateOf(true) }
+    var playbackSpeed by remember { mutableFloatStateOf(1f) }
+    var showSettings by remember { mutableStateOf(false) }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
     val player = remember { MediaPlayer() }
@@ -106,6 +112,12 @@ fun MrPerfectApp() {
             player.setOnPreparedListener { mp ->
                 duration = mp.duration.coerceAtLeast(0)
                 runCatching { equalizer?.release() }
+                runCatching { bassBoost?.release() }
+                runCatching {
+                    val boost = BassBoost(0, mp.audioSessionId)
+                    boost.enabled = bassBoostEnabled
+                    bassBoost = boost
+                }.onFailure { bassBoost = null }
                 runCatching {
                     val effect = Equalizer(0, mp.audioSessionId)
                     effect.enabled = true
@@ -122,7 +134,7 @@ fun MrPerfectApp() {
                 isPlaying = true
             }
             player.setOnCompletionListener {
-                if (currentIndex + 1 < songs.size) playTrack(currentIndex + 1)
+                if (autoPlayNext && currentIndex + 1 < songs.size) playTrack(currentIndex + 1)
                 else { isPlaying = false; position = 0 }
             }
             player.setOnErrorListener { _, _, _ ->
@@ -141,6 +153,7 @@ fun MrPerfectApp() {
     DisposableEffect(Unit) {
         onDispose {
             runCatching { equalizer?.release() }
+            runCatching { bassBoost?.release() }
             runCatching { player.release() }
         }
     }
@@ -179,6 +192,9 @@ fun MrPerfectApp() {
                             contentDescription = "MR. PERFECT YADAV profile photo",
                             modifier = Modifier.size(54.dp).clip(CircleShape)
                         )
+                        IconButton(onClick = { showSettings = true }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Red)
+                        }
                     }
                 }
                 item {
@@ -327,6 +343,14 @@ fun MrPerfectApp() {
                                 }
                             }
                             Text("Dolby Atmos is available only on supported phones; this uses Android's built-in equalizer.", color = Muted, fontSize = 10.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Bass Boost", color = White, modifier = Modifier.weight(1f))
+                                Switch(checked = bassBoostEnabled, onCheckedChange = { enabled ->
+                                    bassBoostEnabled = enabled
+                                    runCatching { bassBoost?.enabled = enabled }
+                                })
+                            }
                         }
                     }
                 }
@@ -437,6 +461,36 @@ fun MrPerfectApp() {
                     }
                 }
             }
+        }
+        if (showSettings) {
+            AlertDialog(
+                onDismissRequest = { showSettings = false },
+                title = { Text("MR. PERFECT YADAV Settings", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Music Player Settings", color = Red, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Auto-play next song", modifier = Modifier.weight(1f))
+                            Switch(checked = autoPlayNext, onCheckedChange = { autoPlayNext = it })
+                        }
+                        Text("Audio playback speed: ${String.format(\"%.2f\", playbackSpeed)}x")
+                        Slider(value = playbackSpeed, onValueChange = { speed ->
+                            playbackSpeed = speed
+                            runCatching { if (duration > 0) player.playbackParams = player.playbackParams.setSpeed(speed) }
+                        }, valueRange = 0.5f..2f)
+                        Text("Equalizer and Bass Boost", color = Red, fontWeight = FontWeight.Bold)
+                        Text("Use the Audio Equalizer section on the home screen. Bass Boost works when the phone audio effect is supported.", fontSize = 12.sp)
+                        Text("Notification / lock-screen controls are not yet integrated in this build.", fontSize = 12.sp, color = Muted)
+                        Text("Online catalog currently supplies short previews, not full-length tracks.", fontSize = 12.sp, color = Muted)
+                        Text("About MR. PERFECT YADAV", color = Red, fontWeight = FontWeight.Bold)
+                        Text("Premium red-and-black music player", fontSize = 12.sp)
+                    }
+                },
+                confirmButton = { TextButton(onClick = { showSettings = false }) { Text("Done") } },
+                containerColor = Panel,
+                titleContentColor = White,
+                textContentColor = White
+            )
         }
     }
 }
