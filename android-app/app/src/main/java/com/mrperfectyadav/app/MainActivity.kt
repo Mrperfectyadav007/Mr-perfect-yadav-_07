@@ -5,10 +5,6 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.webkit.WebResourceRequest
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -23,9 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +31,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+import org.json.JSONObject
 
 private val Black = Color(0xFF080808)
 private val Panel = Color(0xFF181818)
@@ -58,7 +58,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MrPerfectApp() {
     val context = LocalContext.current
-    var showYouTube by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var onlineSongs by remember { mutableStateOf(listOf<LocalSong>()) }
+    var isSearching by remember { mutableStateOf(false) }
+    var searchMessage by remember { mutableStateOf("Search for a song, artist or album.") }
+    val scope = rememberCoroutineScope()
     var songs by remember { mutableStateOf(listOf<LocalSong>()) }
     var currentIndex by remember { mutableIntStateOf(-1) }
     var isPlaying by remember { mutableStateOf(false) }
@@ -184,29 +188,83 @@ fun MrPerfectApp() {
                     }
                 }
                 item {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Explore online", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f))
-                        Text("ONLINE", color = Red, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                    Text("Online music search", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Song, singer or album search") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = White, unfocusedTextColor = White,
+                            focusedBorderColor = Red, unfocusedBorderColor = PanelLight,
+                            focusedLabelColor = Red, cursorColor = Red
+                        ),
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                val q = searchQuery.trim()
+                                if (q.isNotEmpty()) scope.launch {
+                                    isSearching = true
+                                    searchMessage = "Searching songs..."
+                                    val found = withContext(Dispatchers.IO) {
+                                        runCatching {
+                                            val encoded = URLEncoder.encode(q, "UTF-8")
+                                            val connection = (URL("https://itunes.apple.com/search?term=$encoded&entity=song&limit=25&country=IN").openConnection() as HttpURLConnection)
+                                            connection.connectTimeout = 12000
+                                            connection.readTimeout = 12000
+                                            connection.requestMethod = "GET"
+                                            try {
+                                                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                                                val results = JSONObject(body).getJSONArray("results")
+                                                buildList {
+                                                    for (i in 0 until results.length()) {
+                                                        val item = results.getJSONObject(i)
+                                                        val preview = item.optString("previewUrl")
+                                                        if (preview.startsWith("https://") || preview.startsWith("http://")) {
+                                                            val title = item.optString("trackName", "Unknown track")
+                                                            val artist = item.optString("artistName", "Unknown artist")
+                                                            add(LocalSong(Uri.parse(preview), "$title — $artist"))
+                                                        }
+                                                    }
+                                                }
+                                            } finally { connection.disconnect() }
+                                        }.getOrDefault(emptyList())
+                                    }
+                                    onlineSongs = found
+                                    songs = (songs + found).distinctBy { it.uri }
+                                    searchMessage = if (found.isEmpty()) "No playable previews found. Try another search." else "Tap a song to play its preview inside this app."
+                                    isSearching = false
+                                }
+                            }) {
+                                Icon(Icons.Default.Search, contentDescription = "Search", tint = Red)
+                            }
+                        }
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(searchMessage, color = Muted, fontSize = 12.sp)
+                    if (isSearching) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Red)
                     }
-                    Card(
-                        onClick = { showYouTube = true },
-                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Panel)
-                    ) {
-                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(52.dp).background(Color(0xFF3A1010), RoundedCornerShape(14.dp)),
-                                contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Public, contentDescription = null, tint = Red, modifier = Modifier.size(28.dp))
-                            }
-                            Column(Modifier.weight(1f).padding(horizontal = 13.dp)) {
-                                Text("Search online music", color = White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text("Open music search inside the app", color = Muted, fontSize = 12.sp)
-                            }
-                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Red)
+                    onlineSongs.forEach { song ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 8.dp)
+                                .background(Panel, RoundedCornerShape(14.dp))
+                                .clickable {
+                                    val index = songs.indexOfFirst { it.uri == song.uri }
+                                    if (index >= 0) playTrack(index)
+                                }.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Album, contentDescription = null, tint = Red, modifier = Modifier.size(30.dp))
+                            Text(song.title, color = White, fontSize = 13.sp,
+                                modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                                maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Icon(Icons.Default.PlayCircle, contentDescription = "Play preview", tint = Red)
                         }
                     }
+                    Text("Online catalog previews • playback stays in this app", color = Muted, fontSize = 10.sp)
                 }
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -315,65 +373,6 @@ fun MrPerfectApp() {
                     }
                 }
             }
-        }
-        if (showYouTube) YouTubePlayerDialog(onDismiss = { showYouTube = false })
-    }
-}
-
-@Composable
-private fun YouTubePlayerDialog(onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(Modifier.fillMaxSize().background(Black)) {
-            Row(
-                Modifier.fillMaxWidth().background(Panel).padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = White)
-                }
-                Text("Online Music", color = White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { viewContext ->
-                    WebView(viewContext).apply {
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        settings.mediaPlaybackRequiresUserGesture = true
-                        settings.setSupportMultipleWindows(false)
-                        settings.javaScriptCanOpenWindowsAutomatically = false
-                        webViewClient = object : WebViewClient() {
-                            private fun keepInsideApp(view: WebView, url: String): Boolean {
-                                val scheme = Uri.parse(url).scheme?.lowercase()
-                                if (scheme == "http" || scheme == "https") return false
-                                if (scheme == "intent") {
-                                    val fallback = runCatching {
-                                        Intent.parseUri(url, Intent.URI_INTENT_SCHEME).getStringExtra("browser_fallback_url")
-                                    }.getOrNull()
-                                    if (!fallback.isNullOrBlank()) {
-                                        val fallbackScheme = Uri.parse(fallback).scheme
-                                        if (fallbackScheme == "http" || fallbackScheme == "https") view.loadUrl(fallback)
-                                    }
-                                }
-                                return true
-                            }
-                            @Suppress("DEPRECATION")
-                            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
-                                keepInsideApp(view, url)
-                            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
-                                keepInsideApp(view, request.url.toString())
-                        }
-                        webChromeClient = object : WebChromeClient() {
-                            override fun onCreateWindow(
-                                view: WebView, isDialog: Boolean, isUserGesture: Boolean,
-                                resultMsg: android.os.Message
-                            ): Boolean = false
-                        }
-                        loadUrl("https://m.youtube.com/")
-                    }
-                },
-                onRelease = { webView -> webView.stopLoading(); webView.destroy() }
-            )
         }
     }
 }
