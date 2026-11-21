@@ -3,6 +3,9 @@ package com.mrperfectyadav.app
 import android.content.Intent
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.app.DownloadManager
+import android.os.Environment
+import android.widget.Toast
 import android.media.MediaPlayer
 import android.media.audiofx.Equalizer
 import android.media.audiofx.BassBoost
@@ -400,20 +403,25 @@ fun MrPerfectApp() {
                         Row(
                             Modifier.fillMaxWidth().padding(top = 8.dp)
                                 .background(Panel, RoundedCornerShape(14.dp))
-                                .clickable {
-                                    val index = songs.indexOfFirst { it.uri == song.uri }
-                                    if (index >= 0) playTrack(index)
-                                }.padding(12.dp),
+                                .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Default.Album, contentDescription = null, tint = Red, modifier = Modifier.size(30.dp))
                             Text(song.title, color = White, fontSize = 13.sp,
-                                modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                                 maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            Icon(Icons.Default.PlayCircle, contentDescription = "Play full track", tint = Red)
+                            IconButton(onClick = {
+                                val index = songs.indexOfFirst { it.uri == song.uri }
+                                if (index >= 0) playTrack(index)
+                            }) {
+                                Icon(Icons.Default.PlayCircle, contentDescription = "Play full track", tint = Red)
+                            }
+                            IconButton(onClick = { downloadFullTrack(context, song) }) {
+                                Icon(Icons.Default.Download, contentDescription = "Download full track", tint = White)
+                            }
                         }
                     }
-                    Text("Full-length tracks from Internet Archive with Creative Commons / public-domain licensing; playback stays in this app.", color = Muted, fontSize = 10.sp)
+                    Text("Play or download full-length tracks. Download is offered for the Creative Commons / public-domain results shown here.", color = Muted, fontSize = 10.sp)
                 }
                 item {
                     Card(
@@ -622,6 +630,30 @@ private fun SmallLinkCard(
     }
 }
 
+
+
+private fun downloadFullTrack(context: Context, song: LocalSong) {
+    runCatching {
+        val request = DownloadManager.Request(song.uri)
+            .setTitle(song.title)
+            .setDescription("Downloading to Music — MR. PERFECT YADAV")
+            .setMimeType("audio/mpeg")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(false)
+        val safeName = song.title
+            .replace(Regex("[^A-Za-z0-9._ -]"), "_")
+            .trim()
+            .take(90)
+            .ifBlank { "Mr_Perfect_Yadav_Track" }
+        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "$safeName.mp3")
+        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        manager.enqueue(request)
+        Toast.makeText(context, "Download started. Check your Music folder.", Toast.LENGTH_LONG).show()
+    }.onFailure {
+        Toast.makeText(context, "Download could not start: ${it.localizedMessage ?: "unknown error"}", Toast.LENGTH_LONG).show()
+    }
+}
 
 private object PlaybackBridge {
     var onPlay: (() -> Unit)? = null
