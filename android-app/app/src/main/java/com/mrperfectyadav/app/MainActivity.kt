@@ -570,6 +570,7 @@ fun MrPerfectApp() {
                         }
                     }
                 }
+                item { LibraryFeaturePanel(trackTitles = songs.map { it.title }, currentIndex = currentIndex) }
                 item { Text("Connect", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                 item { SmallLinkCard("Telegram Bot", "t.me/Mr_perfect_yadav_07robot", Icons.Default.Send) {
                     openLink(context, "https://t.me/Mr_perfect_yadav_07robot")
