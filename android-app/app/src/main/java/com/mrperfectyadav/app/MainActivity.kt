@@ -148,13 +148,8 @@ fun MrPerfectApp() {
 
 @Composable
 private fun YouTubePlayerDialog(onDismiss: () -> Unit) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().background(Black)
-        ) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(modifier = Modifier.fillMaxSize().background(Black)) {
             Row(
                 modifier = Modifier.fillMaxWidth().background(Panel).padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -162,12 +157,7 @@ private fun YouTubePlayerDialog(onDismiss: () -> Unit) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = White)
                 }
-                Text(
-                    "YouTube Music",
-                    color = White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("YouTube Music", color = White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
@@ -176,35 +166,43 @@ private fun YouTubePlayerDialog(onDismiss: () -> Unit) {
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
                         settings.mediaPlaybackRequiresUserGesture = true
+                        settings.setSupportMultipleWindows(false)
+                        settings.javaScriptCanOpenWindowsAutomatically = false
                         webViewClient = object : WebViewClient() {
-                            override fun shouldOverrideUrlLoading(
-                                view: WebView,
-                                request: WebResourceRequest
-                            ): Boolean {
-                                val target = request.url
-                                return when (target.scheme?.lowercase()) {
-                                    "http", "https" -> false
-                                    // Do not hand YouTube intent links to the installed YouTube app.
-                                    "intent" -> {
-                                        val fallback = target.getQueryParameter("S.browser_fallback_url")
-                                        if (!fallback.isNullOrBlank() &&
-                                            (fallback.contains("youtube.com") || fallback.contains("youtu.be"))) {
-                                            view.loadUrl(fallback)
-                                        }
-                                        true
+                            private fun keepInsideApp(view: WebView, url: String): Boolean {
+                                val scheme = Uri.parse(url).scheme?.lowercase()
+                                if (scheme == "http" || scheme == "https") return false
+                                if (scheme == "intent") {
+                                    val fallback = runCatching {
+                                        Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                                            .getStringExtra("browser_fallback_url")
+                                    }.getOrNull()
+                                    if (!fallback.isNullOrBlank()) {
+                                        val fallbackScheme = Uri.parse(fallback).scheme
+                                        if (fallbackScheme == "http" || fallbackScheme == "https") view.loadUrl(fallback)
                                     }
-                                    else -> true
                                 }
+                                // Block intent://, vnd.youtube://, market:// and other app hand-offs.
+                                return true
                             }
+
+                            @Suppress("DEPRECATION")
+                            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
+                                keepInsideApp(view, url)
+
+                            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
+                                keepInsideApp(view, request.url.toString())
                         }
-                        webChromeClient = WebChromeClient()
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onCreateWindow(
+                                view: WebView, isDialog: Boolean, isUserGesture: Boolean,
+                                resultMsg: android.os.Message
+                            ): Boolean = false
+                        }
                         loadUrl("https://m.youtube.com/")
                     }
                 },
-                onRelease = { webView ->
-                    webView.stopLoading()
-                    webView.destroy()
-                }
+                onRelease = { webView -> webView.stopLoading(); webView.destroy() }
             )
         }
     }
