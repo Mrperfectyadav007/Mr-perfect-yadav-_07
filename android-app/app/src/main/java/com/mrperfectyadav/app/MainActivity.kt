@@ -128,6 +128,8 @@ fun MrPerfectApp() {
     var bassBoost by remember { mutableStateOf<BassBoost?>(null) }
     var bassBoostEnabled by remember { mutableStateOf(false) }
     var autoPlayNext by remember { mutableStateOf(true) }
+    var shuffleEnabled by remember { mutableStateOf(false) }
+    var repeatCurrent by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showSettings by remember { mutableStateOf(false) }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
@@ -187,8 +189,15 @@ fun MrPerfectApp() {
                 isPlaying = true
             }
             player.setOnCompletionListener {
-                if (autoPlayNext && currentIndex + 1 < songs.size) playTrack(currentIndex + 1)
-                else { isPlaying = false; position = 0 }
+                when {
+                    repeatCurrent && currentIndex in songs.indices -> playTrack(currentIndex)
+                    shuffleEnabled && songs.isNotEmpty() -> {
+                        val candidates = songs.indices.filter { it != currentIndex }.ifEmpty { songs.indices.toList() }
+                        playTrack(candidates.random())
+                    }
+                    autoPlayNext && currentIndex + 1 < songs.size -> playTrack(currentIndex + 1)
+                    else -> { isPlaying = false; position = 0 }
+                }
             }
             player.setOnErrorListener { _, _, _ ->
                 isPreparing = false
@@ -644,6 +653,14 @@ fun MrPerfectApp() {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Auto-play next song", modifier = Modifier.weight(1f))
                             Switch(checked = autoPlayNext, onCheckedChange = { autoPlayNext = it })
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Shuffle playback", modifier = Modifier.weight(1f))
+                            Switch(checked = shuffleEnabled, onCheckedChange = { shuffleEnabled = it })
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Repeat current track", modifier = Modifier.weight(1f))
+                            Switch(checked = repeatCurrent, onCheckedChange = { repeatCurrent = it })
                         }
                         Text("Audio playback speed: ${String.format("%.2f", playbackSpeed)}x")
                         Slider(value = playbackSpeed, onValueChange = { speed ->
