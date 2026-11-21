@@ -97,7 +97,7 @@ fun LibraryFeaturePanel(trackTitles: List<String>, currentIndex: Int) {
                     enabled = currentTitle != null
                 ) {
                     Icon(Icons.Default.Favorite, contentDescription = null)
-                    Text(if (currentTitle in favorites) "Saved" else "Favorite")
+                    Text(if (currentTitle != null && currentTitle in favorites) "Saved" else "Favorite")
                 }
                 Text("Favorites: ${favorites.size}", color = FeatureMuted, modifier = Modifier.padding(top = 12.dp))
             }
