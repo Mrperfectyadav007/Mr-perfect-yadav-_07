@@ -465,10 +465,11 @@ fun MrPerfectApp() {
                                 .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Album, contentDescription = null, tint = Red, modifier = Modifier.size(30.dp))
-                            Text(song.title, color = White, fontSize = 13.sp,
-                                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                                maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                                Text(song.title, color = White, fontSize = 13.sp,
+                                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text("Full-length audio • Legal catalogue", color = Muted, fontSize = 10.sp)
+                            }
                             IconButton(onClick = {
                                 val index = songs.indexOfFirst { it.uri == song.uri }
                                 if (index >= 0) playTrack(index)
