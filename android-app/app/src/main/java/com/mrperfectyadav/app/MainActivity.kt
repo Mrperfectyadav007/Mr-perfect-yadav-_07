@@ -1,10 +1,13 @@
 package com.mrperfectyadav.app
 
 import android.content.Intent
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -96,11 +99,7 @@ fun MrPerfectApp() {
                         openLink(context, "https://t.me/Mr_perfect_yadav_07robot")
                     }
                 }
-                item {
-                    FeatureCard("Music Player", "Explore music and your web player", Icons.Default.MusicNote) {
-                        openLink(context, "https://music.youtube.com/")
-                    }
-                }
+                item { MusicPlayerCard() }
                 item {
                     FeatureCard("AI Assistant", "Open ChatGPT and start an AI conversation", Icons.Default.AutoAwesome) {
                         openLink(context, "https://chatgpt.com/")
@@ -117,7 +116,7 @@ fun MrPerfectApp() {
                     }
                 }
                 item {
-                    FeatureCard("About App", "Version 1.1 • MR. PERFECT YADAV", Icons.Default.Info) {
+                    FeatureCard("About App", "Version 1.2 • MR. PERFECT YADAV", Icons.Default.Info) {
                         openLink(context, "https://mrperfectyadav007.github.io/mr-perfect-yadav-_07/")
                     }
                 }
@@ -130,8 +129,121 @@ fun MrPerfectApp() {
             }
         }
     }
+}
 
+@Composable
+private fun MusicPlayerCard() {
+    val context = LocalContext.current
+    var selectedUri by remember { mutableStateOf<Uri?>(null) }
+    var player by remember { mutableStateOf<MediaPlayer?>(null) }
+    var isPlaying by remember { mutableStateOf(false) }
+    var isPrepared by remember { mutableStateOf(false) }
+    var trackName by remember { mutableStateOf("अभी कोई गाना नहीं चुना") }
 
+    val audioPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        selectedUri = uri
+        trackName = if (uri == null) "अभी कोई गाना नहीं चुना" else "आपका चुना हुआ गाना"
+    }
+
+    LaunchedEffect(selectedUri) {
+        player?.release()
+        player = null
+        isPlaying = false
+        isPrepared = false
+        val uri = selectedUri ?: return@LaunchedEffect
+        val newPlayer = MediaPlayer()
+        player = newPlayer
+        newPlayer.setOnPreparedListener {
+            isPrepared = true
+            it.start()
+            isPlaying = true
+        }
+        newPlayer.setOnCompletionListener { isPlaying = false }
+        try {
+            newPlayer.setDataSource(context, uri)
+            newPlayer.prepareAsync()
+        } catch (_: Exception) {
+            newPlayer.release()
+            player = null
+            trackName = "गाना नहीं चल पाया"
+        }
+    }
+
+    DisposableEffect(player) {
+        val currentPlayer = player
+        onDispose { currentPlayer?.release() }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Panel)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(17.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.MusicNote, contentDescription = null, tint = Red, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(15.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Music Player", color = White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(trackName, color = Color.LightGray, fontSize = 12.sp)
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { audioPicker.launch("audio/*") },
+                    colors = ButtonDefaults.buttonColors(containerColor = Red),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.FolderOpen, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("गाना चुनें")
+                }
+                IconButton(
+                    onClick = {
+                        val current = player ?: return@IconButton
+                        if (isPlaying) {
+                            current.pause()
+                            isPlaying = false
+                        } else if (isPrepared) {
+                            current.start()
+                            isPlaying = true
+                        }
+                    },
+                    enabled = isPrepared
+                ) {
+                    Icon(
+                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = if (isPrepared) Red else Color.Gray,
+                        modifier = Modifier.size(34.dp)
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        player?.let {
+                            if (isPrepared) {
+                                it.pause()
+                                it.seekTo(0)
+                                isPlaying = false
+                            }
+                        }
+                    },
+                    enabled = isPrepared
+                ) {
+                    Icon(Icons.Default.Stop, contentDescription = "Stop", tint = if (isPrepared) Red else Color.Gray)
+                }
+            }
+            Text("फोन से MP3 या दूसरी audio file चुनकर सुनें।",
+                color = Color.Gray, fontSize = 11.sp)
+        }
+    }
 }
 
 @Composable
