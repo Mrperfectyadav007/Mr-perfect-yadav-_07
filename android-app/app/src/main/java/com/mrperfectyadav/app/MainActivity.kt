@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -175,7 +176,27 @@ private fun YouTubePlayerDialog(onDismiss: () -> Unit) {
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
                         settings.mediaPlaybackRequiresUserGesture = true
-                        webViewClient = WebViewClient()
+                        webViewClient = object : WebViewClient() {
+                            override fun shouldOverrideUrlLoading(
+                                view: WebView,
+                                request: WebResourceRequest
+                            ): Boolean {
+                                val target = request.url
+                                return when (target.scheme?.lowercase()) {
+                                    "http", "https" -> false
+                                    // Do not hand YouTube intent links to the installed YouTube app.
+                                    "intent" -> {
+                                        val fallback = target.getQueryParameter("S.browser_fallback_url")
+                                        if (!fallback.isNullOrBlank() &&
+                                            (fallback.contains("youtube.com") || fallback.contains("youtu.be"))) {
+                                            view.loadUrl(fallback)
+                                        }
+                                        true
+                                    }
+                                    else -> true
+                                }
+                            }
+                        }
                         webChromeClient = WebChromeClient()
                         loadUrl("https://m.youtube.com/")
                     }
