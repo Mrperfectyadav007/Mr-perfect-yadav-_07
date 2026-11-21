@@ -1,13 +1,22 @@
 package com.mrperfectyadav.app
 
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.media.MediaPlayer
 import android.media.audiofx.Equalizer
 import android.media.audiofx.BassBoost
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
+import androidx.core.app.NotificationCompat
+import androidx.media.app.NotificationCompat.MediaStyle
+import androidx.media.session.MediaSessionCompat
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -57,9 +66,44 @@ private val Muted = Color(0xFFB8B8B8)
 private data class LocalSong(val uri: Uri, val title: String)
 
 class MainActivity : ComponentActivity() {
+    private var mediaSession: MediaSessionCompat? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        createMusicNotificationChannel()
+        mediaSession = MediaSessionCompat(this, "MrPerfectYadavMusic").apply {
+            setCallback(object : MediaSessionCompat.Callback() {
+                override fun onPlay() { PlaybackBridge.onPlay?.invoke() }
+                override fun onPause() { PlaybackBridge.onPause?.invoke() }
+                override fun onSkipToNext() { PlaybackBridge.onNext?.invoke() }
+                override fun onSkipToPrevious() { PlaybackBridge.onPrevious?.invoke() }
+            })
+            isActive = true
+        }
+        NotificationController.sessionToken = mediaSession?.sessionToken
+        if (Build.VERSION.SDK_INT >= 33) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+        }
         setContent { MrPerfectApp() }
+    }
+
+    override fun onDestroy() {
+        NotificationController.cancel(this)
+        mediaSession?.release()
+        mediaSession = null
+        NotificationController.sessionToken = null
+        super.onDestroy()
+    }
+
+    private fun createMusicNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                NotificationController.CHANNEL_ID,
+                "Music playback",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply { description = "Playback controls for MR. PERFECT YADAV Music" }
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
     }
 }
 
@@ -152,10 +196,34 @@ fun MrPerfectApp() {
     }
 
     DisposableEffect(Unit) {
+        PlaybackBridge.onPlay = {
+            if (currentIndex in songs.indices && !isPreparing) {
+                if (isPlaying) { runCatching { player.pause() }; isPlaying = false }
+                else { runCatching { if (duration > 0) player.start() else playTrack(currentIndex) }; isPlaying = true }
+            }
+        }
+        PlaybackBridge.onPause = {
+            runCatching { player.pause() }
+            isPlaying = false
+        }
+        PlaybackBridge.onNext = { if (currentIndex + 1 < songs.size) playTrack(currentIndex + 1) }
+        PlaybackBridge.onPrevious = { if (currentIndex > 0) playTrack(currentIndex - 1) }
         onDispose {
+            PlaybackBridge.onPlay = null
+            PlaybackBridge.onPause = null
+            PlaybackBridge.onNext = null
+            PlaybackBridge.onPrevious = null
             runCatching { equalizer?.release() }
             runCatching { bassBoost?.release() }
             runCatching { player.release() }
+        }
+    }
+
+    LaunchedEffect(currentIndex, isPlaying, isPreparing) {
+        if (currentIndex in songs.indices) {
+            NotificationController.show(context, songs[currentIndex].title, isPlaying)
+        } else {
+            NotificationController.cancel(context)
         }
     }
 
@@ -519,7 +587,7 @@ fun MrPerfectApp() {
                         }, valueRange = 0.5f..2f)
                         Text("Equalizer and Bass Boost", color = Red, fontWeight = FontWeight.Bold)
                         Text("Use the Audio Equalizer section on the home screen. Bass Boost works when the phone audio effect is supported.", fontSize = 12.sp)
-                        Text("Notification / lock-screen controls are not yet integrated in this build.", fontSize = 12.sp, color = Muted)
+                        Text("Playback notification includes Previous, Play/Pause and Next controls. Lock-screen display depends on Android device settings.", fontSize = 12.sp, color = Muted)
                         Text("Online search streams full-length Creative Commons / public-domain MP3 files from Internet Archive. Mainstream commercial releases may not be available.", fontSize = 12.sp, color = Muted)
                         Text("About MR. PERFECT YADAV", color = Red, fontWeight = FontWeight.Bold)
                         Text("Premium red-and-black music player", fontSize = 12.sp)
@@ -550,6 +618,73 @@ private fun SmallLinkCard(
                 Text(subtitle, color = Muted, fontSize = 11.sp)
             }
             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Red)
+        }
+    }
+}
+
+
+private object PlaybackBridge {
+    var onPlay: (() -> Unit)? = null
+    var onPause: (() -> Unit)? = null
+    var onNext: (() -> Unit)? = null
+    var onPrevious: (() -> Unit)? = null
+}
+
+private object NotificationController {
+    const val CHANNEL_ID = "mr_perfect_music_playback"
+    private const val NOTIFICATION_ID = 701
+    var sessionToken: MediaSessionCompat.Token? = null
+
+    fun show(context: Context, title: String, isPlaying: Boolean) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val previous = actionIntent(context, "previous", 1)
+        val toggle = actionIntent(context, if (isPlaying) "pause" else "play", 2)
+        val next = actionIntent(context, "next", 3)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.app_icon)
+            .setContentTitle(title)
+            .setContentText("MR. PERFECT YADAV MUSIC")
+            .setSubText("Full-track player")
+            .setOnlyAlertOnce(true)
+            .setOngoing(isPlaying)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .addAction(android.R.drawable.ic_media_previous, "Previous", previous)
+            .addAction(
+                if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                if (isPlaying) "Pause" else "Play",
+                toggle
+            )
+            .addAction(android.R.drawable.ic_media_next, "Next", next)
+            .setStyle(
+                MediaStyle()
+                    .setMediaSession(sessionToken)
+                    .setShowActionsInCompactView(0, 1, 2)
+            )
+            .build()
+        runCatching { manager.notify(NOTIFICATION_ID, notification) }
+    }
+
+    fun cancel(context: Context) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(NOTIFICATION_ID)
+    }
+
+    private fun actionIntent(context: Context, action: String, requestCode: Int): PendingIntent {
+        val intent = Intent(context, MusicActionReceiver::class.java).setAction(action)
+        return PendingIntent.getBroadcast(
+            context, requestCode, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+}
+
+class MusicActionReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent?) {
+        when (intent?.action) {
+            "play" -> PlaybackBridge.onPlay?.invoke()
+            "pause" -> PlaybackBridge.onPause?.invoke()
+            "next" -> PlaybackBridge.onNext?.invoke()
+            "previous" -> PlaybackBridge.onPrevious?.invoke()
         }
     }
 }
