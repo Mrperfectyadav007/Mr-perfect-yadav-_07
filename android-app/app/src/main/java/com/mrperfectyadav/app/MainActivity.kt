@@ -473,7 +473,7 @@ fun MrPerfectApp() {
                             Text("Auto-play next song", modifier = Modifier.weight(1f))
                             Switch(checked = autoPlayNext, onCheckedChange = { autoPlayNext = it })
                         }
-                        Text("Audio playback speed: ${String.format(\"%.2f\", playbackSpeed)}x")
+                        Text("Audio playback speed: ${String.format("%.2f", playbackSpeed)}x")
                         Slider(value = playbackSpeed, onValueChange = { speed ->
                             playbackSpeed = speed
                             runCatching { if (duration > 0) player.playbackParams = player.playbackParams.setSpeed(speed) }
