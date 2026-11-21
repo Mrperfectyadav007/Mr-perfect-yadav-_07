@@ -1,56 +1,174 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#090d18">
-  <meta name="description" content="Official profile website of MR. PERFECT YADAV. Connect on Telegram and Instagram.">
-  <title>MR. PERFECT YADAV | Official</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; min-height: 100vh; display: grid; place-items: center;
-      padding: 28px 16px; color: #f7f8fc;
-      font-family: Arial, Helvetica, sans-serif;
-      background: radial-gradient(circle at 20% 10%, #26385e 0, transparent 35%),
-                  radial-gradient(circle at 90% 90%, #4a1838 0, transparent 34%), #090d18;
-    }
-    .card {
-      width: min(100%, 430px); padding: 30px 24px 26px; text-align: center;
-      border: 1px solid rgba(255,255,255,.14); border-radius: 28px;
-      background: rgba(17,24,39,.82); box-shadow: 0 24px 80px rgba(0,0,0,.48);
-      backdrop-filter: blur(12px);
-    }
-    .avatar {
-      width: 154px; height: 154px; object-fit: cover; object-position: center 35%;
-      border-radius: 50%; border: 4px solid #e8b84b;
-      box-shadow: 0 0 0 7px rgba(232,184,75,.13); 
-    }
-    h1 { margin: 22px 0 8px; font-size: clamp(23px, 6vw, 30px); letter-spacing: 1.5px; }
-    .tag { margin: 0 0 24px; color: #c4cad8; font-size: 13px; letter-spacing: 3px; }
-    .links { display: grid; gap: 13px; }
-    .link {
-      display: block; padding: 15px 18px; border-radius: 14px;
-      color: white; text-decoration: none; font-weight: 700; letter-spacing: .5px;
-      transition: transform .18s ease, filter .18s ease;
-    }
-    .link:hover { transform: translateY(-2px); filter: brightness(1.12); }
-    .telegram { background: linear-gradient(110deg, #168bd0, #0875b9); }
-    .instagram { background: linear-gradient(110deg, #833ab4, #fd1d1d, #fcb045); }
-    footer { margin-top: 25px; color: #929bad; font-size: 11px; letter-spacing: 1.2px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MR. PERFECT YADAV</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+ min-height:100vh;
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ overflow-x:hidden;
+ font-family:Arial,sans-serif;
+ color:white;
+ background:linear-gradient(135deg,#050014,#101044,#16002c,#020817);
+ background-size:400% 400%;
+ animation:bg 12s ease infinite;
+ padding:25px 12px;
+}
+
+@keyframes bg{
+ 0%{background-position:0% 50%}
+ 50%{background-position:100% 50%}
+ 100%{background-position:0% 50%}
+}
+
+.grid{
+ position:fixed;
+ inset:0;
+ background-image:
+ linear-gradient(rgba(0,255,255,.12) 1px,transparent 1px),
+ linear-gradient(90deg,rgba(0,255,255,.12) 1px,transparent 1px);
+ background-size:45px 45px;
+ transform:perspective(400px) rotateX(60deg) scale(2.2);
+ transform-origin:bottom;
+ animation:move 8s linear infinite;
+ pointer-events:none;
+}
+@keyframes move{
+ from{background-position:0 0}
+ to{background-position:0 90px}
+}
+
+.orb{
+ position:fixed;
+ width:130px;height:130px;
+ border-radius:50%;
+ background:radial-gradient(circle at 30% 25%,#fff,#00d9ff 15%,#3500a8 55%,transparent 75%);
+ filter:drop-shadow(0 0 25px #00d9ff);
+ opacity:.6;
+ animation:float 7s ease-in-out infinite;
+}
+.orb.one{top:8%;left:5%}
+.orb.two{bottom:8%;right:5%;animation-delay:2s}
+@keyframes float{
+ 0%,100%{transform:translateY(0) rotate(0)}
+ 50%{transform:translateY(-35px) rotate(25deg)}
+}
+
+.card{
+ position:relative;
+ z-index:2;
+ width:100%;
+ max-width:410px;
+ text-align:center;
+ padding:32px 22px;
+ border:1px solid rgba(0,238,255,.6);
+ border-radius:25px;
+ background:rgba(5,8,30,.76);
+ backdrop-filter:blur(15px);
+ box-shadow:0 0 25px #00cfff, inset 0 0 25px rgba(0,200,255,.12);
+}
+
+.profile{
+ width:145px;height:145px;
+ object-fit:cover;
+ border-radius:50%;
+ border:4px solid #00eaff;
+ box-shadow:0 0 25px #00d9ff,0 0 45px #8b00ff;
+ margin-bottom:20px;
+}
+
+.welcome{
+ color:#ffd700;
+ font-size:15px;
+ line-height:1.8;
+ margin:0 auto 17px;
+ text-shadow:0 0 12px #ff9900;
+ overflow-wrap:anywhere;
+}
+
+h1{
+ font-size:27px;
+ font-weight:900;
+ margin-bottom:12px;
+ color:#fff;
+ text-shadow:0 0 10px #00eaff,0 0 25px #8b00ff;
+}
+
+.subtitle{
+ color:#b9eaff;
+ margin-bottom:24px;
+ letter-spacing:2px;
+ font-size:13px;
+}
+
+.links{
+ display:flex;
+ flex-direction:column;
+ gap:13px;
+}
+
+.links a{
+ text-decoration:none;
+ color:white;
+ font-weight:bold;
+ padding:14px;
+ border-radius:30px;
+ border:1px solid #00eaff;
+ background:linear-gradient(90deg,#101044,#182b65);
+ box-shadow:0 0 12px rgba(0,220,255,.35);
+ transition:.3s;
+}
+
+.links a:hover{
+ transform:scale(1.04);
+ background:linear-gradient(90deg,#7800ff,#007bff);
+ box-shadow:0 0 22px #00eaff;
+}
+
+footer{
+ margin-top:25px;
+ color:#a9c9ff;
+ font-size:12px;
+}
+</style>
 </head>
+
 <body>
-  <main class="card">
-    <img class="avatar" src="profile.jpg" alt="MR. PERFECT YADAV profile photo">
-    <h1>MR. PERFECT YADAV</h1>
-    <p class="tag">OFFICIAL PROFILE</p>
-    <nav class="links" aria-label="Social media links">
-      <a class="link telegram" href="https://t.me/MR_PERFECT_YADAV" target="_blank" rel="noopener noreferrer">✈ Telegram · @MR_PERFECT_YADAV</a>
-      <a class="link instagram" href="https://www.instagram.com/mr_perfect_yadav_07/" target="_blank" rel="noopener noreferrer">◎ Instagram · @mr_perfect_yadav_07</a>
-    </nav>
-    <footer>© <span id="year"></span> MR. PERFECT YADAV</footer>
-  </main>
-  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+<div class="grid"></div>
+<div class="orb one"></div>
+<div class="orb two"></div>
+
+<main class="card">
+
+<img class="profile" src="profile.jpg" alt="MR PERFECT YADAV">
+
+<div class="welcome">
+‖ 𑠐ᩩ𑂭𑂹𑆣꧊ 𑂮𑐡꧊ 𑂮͞𑂯꧊⃜𑈧͞તે ⁚ ‖
+</div>
+
+<h1>MR. PERFECT YADAV</h1>
+<div class="subtitle">OFFICIAL PERSONAL WEBSITE</div>
+
+<div class="links">
+<a href="https://t.me/MR_PERFECT_YADAV" target="_blank">✈ Personal Telegram</a>
+
+<a href="https://t.me/Mr_perfect_yadav_07robot" target="_blank">🤖 Telegram Music Bot</a>
+
+<a href="https://t.me/RADHEY_RADHEY_07" target="_blank">📢 Telegram Channel</a>
+
+<a href="https://www.instagram.com/mr_perfect_yadav_07/" target="_blank">◎ Instagram</a>
+</div>
+
+<footer>© 2026 MR. PERFECT YADAV | All Rights Reserved</footer>
+
+</main>
 </body>
 </html>
