@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090d18">
+  <meta name="description" content="Official profile website of MR. PERFECT YADAV. Connect on Telegram and Instagram.">
+  <title>MR. PERFECT YADAV | Official</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      padding: 28px 16px; color: #f7f8fc;
+      font-family: Arial, Helvetica, sans-serif;
+      background: radial-gradient(circle at 20% 10%, #26385e 0, transparent 35%),
+                  radial-gradient(circle at 90% 90%, #4a1838 0, transparent 34%), #090d18;
+    }
+    .card {
+      width: min(100%, 430px); padding: 30px 24px 26px; text-align: center;
+      border: 1px solid rgba(255,255,255,.14); border-radius: 28px;
+      background: rgba(17,24,39,.82); box-shadow: 0 24px 80px rgba(0,0,0,.48);
+      backdrop-filter: blur(12px);
+    }
+    .avatar {
+      width: 154px; height: 154px; object-fit: cover; object-position: center 35%;
+      border-radius: 50%; border: 4px solid #e8b84b;
+      box-shadow: 0 0 0 7px rgba(232,184,75,.13); 
+    }
+    h1 { margin: 22px 0 8px; font-size: clamp(23px, 6vw, 30px); letter-spacing: 1.5px; }
+    .tag { margin: 0 0 24px; color: #c4cad8; font-size: 13px; letter-spacing: 3px; }
+    .links { display: grid; gap: 13px; }
+    .link {
+      display: block; padding: 15px 18px; border-radius: 14px;
+      color: white; text-decoration: none; font-weight: 700; letter-spacing: .5px;
+      transition: transform .18s ease, filter .18s ease;
+    }
+    .link:hover { transform: translateY(-2px); filter: brightness(1.12); }
+    .telegram { background: linear-gradient(110deg, #168bd0, #0875b9); }
+    .instagram { background: linear-gradient(110deg, #833ab4, #fd1d1d, #fcb045); }
+    footer { margin-top: 25px; color: #929bad; font-size: 11px; letter-spacing: 1.2px; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img class="avatar" src="profile.jpg" alt="MR. PERFECT YADAV profile photo">
+    <h1>MR. PERFECT YADAV</h1>
+    <p class="tag">OFFICIAL PROFILE</p>
+    <nav class="links" aria-label="Social media links">
+      <a class="link telegram" href="https://t.me/MR_PERFECT_YADAV" target="_blank" rel="noopener noreferrer">✈ Telegram · @MR_PERFECT_YADAV</a>
+      <a class="link instagram" href="https://www.instagram.com/mr_perfect_yadav_07/" target="_blank" rel="noopener noreferrer">◎ Instagram · @mr_perfect_yadav_07</a>
+    </nav>
+    <footer>© <span id="year"></span> MR. PERFECT YADAV</footer>
+  </main>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
