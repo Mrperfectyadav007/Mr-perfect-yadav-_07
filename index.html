@@ -1,6 +1,6 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,167 +8,149 @@
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-
 body{
- min-height:100vh;
- display:flex;
- justify-content:center;
- align-items:center;
- overflow-x:hidden;
- font-family:Arial,sans-serif;
- color:white;
- background:linear-gradient(135deg,#050014,#101044,#16002c,#020817);
- background-size:400% 400%;
- animation:bg 12s ease infinite;
- padding:25px 12px;
+  font-family:Arial,sans-serif;
+  color:white;
+  background:#050505;
+  min-height:100vh;
+  overflow-x:hidden;
 }
-
-@keyframes bg{
- 0%{background-position:0% 50%}
- 50%{background-position:100% 50%}
- 100%{background-position:0% 50%}
+body:before{
+ content:"";
+ position:fixed;inset:0;z-index:-1;
+ background:
+ radial-gradient(circle at 20% 20%,#650000 0,transparent 35%),
+ radial-gradient(circle at 80% 80%,#6b3b00 0,transparent 35%),
+ #050505;
+ animation:glow 6s infinite alternate;
 }
-
-.grid{
- position:fixed;
- inset:0;
- background-image:
- linear-gradient(rgba(0,255,255,.12) 1px,transparent 1px),
- linear-gradient(90deg,rgba(0,255,255,.12) 1px,transparent 1px);
- background-size:45px 45px;
- transform:perspective(400px) rotateX(60deg) scale(2.2);
- transform-origin:bottom;
- animation:move 8s linear infinite;
- pointer-events:none;
+@keyframes glow{to{filter:hue-rotate(25deg)}}
+header{
+ text-align:center;padding:25px 12px;
+ border-bottom:1px solid #ff3030;
 }
-@keyframes move{
- from{background-position:0 0}
- to{background-position:0 90px}
+.logo{
+ font-size:clamp(25px,6vw,42px);
+ font-weight:900;color:#fff;
+ text-shadow:0 0 10px red,0 0 30px red;
 }
-
-.orb{
- position:fixed;
- width:130px;height:130px;
- border-radius:50%;
- background:radial-gradient(circle at 30% 25%,#fff,#00d9ff 15%,#3500a8 55%,transparent 75%);
- filter:drop-shadow(0 0 25px #00d9ff);
- opacity:.6;
- animation:float 7s ease-in-out infinite;
-}
-.orb.one{top:8%;left:5%}
-.orb.two{bottom:8%;right:5%;animation-delay:2s}
-@keyframes float{
- 0%,100%{transform:translateY(0) rotate(0)}
- 50%{transform:translateY(-35px) rotate(25deg)}
-}
-
-.card{
- position:relative;
- z-index:2;
- width:100%;
- max-width:410px;
- text-align:center;
- padding:32px 22px;
- border:1px solid rgba(0,238,255,.6);
- border-radius:25px;
- background:rgba(5,8,30,.76);
- backdrop-filter:blur(15px);
- box-shadow:0 0 25px #00cfff, inset 0 0 25px rgba(0,200,255,.12);
-}
-
+.tag{color:#ffbd45;margin-top:10px;letter-spacing:3px}
 .profile{
- width:145px;height:145px;
+ text-align:center;padding:45px 15px 25px;
+}
+.avatar{
+ width:145px;height:145px;border-radius:50%;
+ border:4px solid #ff3131;
+ box-shadow:0 0 25px red,0 0 50px #a00000;
  object-fit:cover;
- border-radius:50%;
- border:4px solid #00eaff;
- box-shadow:0 0 25px #00d9ff,0 0 45px #8b00ff;
- margin-bottom:20px;
 }
-
-.welcome{
- color:#ffd700;
- font-size:15px;
- line-height:1.8;
- margin:0 auto 17px;
- text-shadow:0 0 12px #ff9900;
- overflow-wrap:anywhere;
-}
-
 h1{
- font-size:27px;
- font-weight:900;
- margin-bottom:12px;
- color:#fff;
- text-shadow:0 0 10px #00eaff,0 0 25px #8b00ff;
+ margin-top:22px;font-size:28px;
+ color:#ffd36a;
+ text-shadow:0 0 15px #ff2020;
 }
-
-.subtitle{
- color:#b9eaff;
- margin-bottom:24px;
- letter-spacing:2px;
- font-size:13px;
+.profile p{color:#ccc;margin-top:12px}
+.container{
+ width:min(900px,92%);margin:20px auto 50px;
 }
-
-.links{
- display:flex;
- flex-direction:column;
- gap:13px;
-}
-
-.links a{
- text-decoration:none;
- color:white;
- font-weight:bold;
- padding:14px;
- border-radius:30px;
- border:1px solid #00eaff;
- background:linear-gradient(90deg,#101044,#182b65);
- box-shadow:0 0 12px rgba(0,220,255,.35);
+.card{
+ background:linear-gradient(145deg,#171717,#090909);
+ border:1px solid #8b2525;
+ border-radius:18px;padding:23px;
+ margin:18px 0;
+ box-shadow:0 10px 30px #000,0 0 15px #650000;
  transition:.3s;
 }
-
-.links a:hover{
- transform:scale(1.04);
- background:linear-gradient(90deg,#7800ff,#007bff);
- box-shadow:0 0 22px #00eaff;
+.card:hover{
+ transform:translateY(-7px);
+ box-shadow:0 0 25px #ff2424;
 }
-
+.card h2{color:#ffbd45;margin-bottom:15px}
+.links{
+ display:grid;grid-template-columns:repeat(2,1fr);
+ gap:12px;
+}
+.btn{
+ display:block;text-align:center;text-decoration:none;
+ padding:15px 8px;border-radius:12px;
+ color:white;font-weight:bold;
+ border:1px solid #ff3838;
+ background:linear-gradient(120deg,#690000,#180000);
+ transition:.3s;
+}
+.btn:hover{
+ background:#e00000;
+ box-shadow:0 0 20px red;
+ transform:scale(1.04);
+}
 footer{
- margin-top:25px;
- color:#a9c9ff;
- font-size:12px;
+ text-align:center;padding:25px;color:#aaa;
+ border-top:1px solid #572020;
+}
+footer span{color:#ffbd45}
+@media(max-width:480px){
+ .links{grid-template-columns:1fr}
 }
 </style>
 </head>
 
 <body>
-<div class="grid"></div>
-<div class="orb one"></div>
-<div class="orb two"></div>
 
-<main class="card">
+<header>
+ <div class="logo">MR. PERFECT YADAV</div>
+ <div class="tag">OFFICIAL WEBSITE</div>
+</header>
 
-<img class="profile" src="profile.jpg" alt="MR PERFECT YADAV">
+<section class="profile">
+ <img class="avatar"
+ src="profile.jpg" alt="Mr Perfect Yadav"
+ onerror="this.style.display='none'">
 
-<div class="welcome">
-‖ 𑠐ᩩ𑂭𑂹𑆣꧊ 𑂮𑐡꧊ 𑂮͞𑂯꧊⃜𑈧͞તે ⁚ ‖
+ <h1>❨ ͞ 𓆩 MR PERFECT YADAV 𓆪 ❩</h1>
+ <p>Welcome To My Official World ❤️</p>
+</section>
+
+<div class="container">
+
+ <div class="card">
+  <h2>👑 About Me</h2>
+  <p>
+   Welcome to my official website.
+   This is the world of MR. PERFECT YADAV.
+   Stay Connected and Keep Supporting.
+  </p>
+ </div>
+
+ <div class="card">
+  <h2>🚀 My Social Media</h2>
+  <div class="links">
+   <a class="btn" href="https://t.me/MR_PERFECT_YADAV">Telegram</a>
+   <a class="btn" href="https://instagram.com/mr_perfect_yadav_07">Instagram</a>
+   <a class="btn" href="https://t.me/RADHEY_RADHEY_07">My Channel</a>
+   <a class="btn" href="https://t.me/Mr_perfect_yadav_07robot">Music Bot</a>
+  </div>
+ </div>
+
+ <div class="card">
+  <h2>🎵 My Music Bot</h2>
+  <p>Enjoy Music with MR. PERFECT YADAV.</p>
+  <br>
+  <a class="btn" href="https://t.me/Mr_perfect_yadav_07robot">
+   Open Music Bot
+  </a>
+ </div>
+
+ <div class="card">
+  <h2>✨ My Special Identity</h2>
+  <p>Attitude • Passion • Technology • Music</p>
+ </div>
+
 </div>
 
-<h1>MR. PERFECT YADAV</h1>
-<div class="subtitle">OFFICIAL PERSONAL WEBSITE</div>
+<footer>
+ <p>Made with ❤️ by <span>MR. PERFECT YADAV</span></p>
+ <p>© 2026 All Rights Reserved</p>
+</footer>
 
-<div class="links">
-<a href="https://t.me/MR_PERFECT_YADAV" target="_blank">✈ Personal Telegram</a>
-
-<a href="https://t.me/Mr_perfect_yadav_07robot" target="_blank">🤖 Telegram Music Bot</a>
-
-<a href="https://t.me/RADHEY_RADHEY_07" target="_blank">📢 Telegram Channel</a>
-
-<a href="https://www.instagram.com/mr_perfect_yadav_07/" target="_blank">◎ Instagram</a>
-</div>
-
-<footer>© 2026 MR. PERFECT YADAV | All Rights Reserved</footer>
-
-</main>
 </body>
 </html>
