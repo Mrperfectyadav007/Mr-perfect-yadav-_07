@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,6 +25,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -171,9 +174,11 @@ fun MrPerfectApp() {
                             Text("Good music. Good mood.", color = White, fontSize = 25.sp,
                                 fontWeight = FontWeight.ExtraBold)
                         }
-                        Box(Modifier.size(44.dp).background(Red, CircleShape), contentAlignment = Alignment.Center) {
-                            Text("MPY", color = White, fontSize = 13.sp, fontWeight = FontWeight.Black)
-                        }
+                        Image(
+                            painter = painterResource(id = R.drawable.mr_perfect_dp),
+                            contentDescription = "MR. PERFECT YADAV profile photo",
+                            modifier = Modifier.size(54.dp).clip(CircleShape)
+                        )
                     }
                 }
                 item {
