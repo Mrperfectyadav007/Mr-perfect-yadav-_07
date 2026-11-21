@@ -38,7 +38,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MrPerfectApp() {
     val context = LocalContext.current
-    var showInfo by remember { mutableStateOf(false) }
 
     MaterialTheme(colorScheme = darkColorScheme(
         primary = Red,
@@ -103,8 +102,8 @@ fun MrPerfectApp() {
                     }
                 }
                 item {
-                    FeatureCard("AI Assistant", "AI chat connection can be added securely", Icons.Default.AutoAwesome) {
-                        showInfo = true
+                    FeatureCard("AI Assistant", "Open ChatGPT and start an AI conversation", Icons.Default.AutoAwesome) {
+                        openLink(context, "https://chatgpt.com/")
                     }
                 }
                 item {
@@ -118,8 +117,8 @@ fun MrPerfectApp() {
                     }
                 }
                 item {
-                    FeatureCard("About App", "Version 1.0 • MR. PERFECT YADAV", Icons.Default.Info) {
-                        showInfo = true
+                    FeatureCard("About App", "Version 1.1 • MR. PERFECT YADAV", Icons.Default.Info) {
+                        openLink(context, "https://mrperfectyadav007.github.io/mr-perfect-yadav-_07/")
                     }
                 }
                 item {
@@ -132,19 +131,7 @@ fun MrPerfectApp() {
         }
     }
 
-    if (showInfo) {
-        AlertDialog(
-            onDismissRequest = { showInfo = false },
-            title = { Text("Coming soon") },
-            text = { Text("AI chat, secure login and in-app music playback need their backend services to be connected. This starter app does not store passwords or API keys.") },
-            confirmButton = {
-                TextButton(onClick = { showInfo = false }) { Text("OK") }
-            },
-            containerColor = Panel,
-            titleContentColor = White,
-            textContentColor = White
-        )
-    }
+
 }
 
 @Composable
