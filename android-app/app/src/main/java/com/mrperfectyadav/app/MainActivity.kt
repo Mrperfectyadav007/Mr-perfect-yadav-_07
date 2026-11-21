@@ -171,6 +171,19 @@ fun MrPerfectApp() {
         primary = Red, background = Black, surface = Panel,
         onPrimary = White, onBackground = White, onSurface = White
     )) {
+        BackHandler(enabled = showSettings || onlineSongs.isNotEmpty() || searchQuery.isNotBlank()) {
+            when {
+                showSettings -> showSettings = false
+                onlineSongs.isNotEmpty() -> {
+                    onlineSongs = emptyList()
+                    searchMessage = "Search for a song, artist or album."
+                }
+                searchQuery.isNotBlank() -> {
+                    searchQuery = ""
+                    searchMessage = "Search for a song, artist or album."
+                }
+            }
+        }
         Column(
             Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF300909), Black, Black)))
         ) {
