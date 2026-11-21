@@ -19,7 +19,7 @@ import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
-import androidx.media.session.MediaSessionCompat
+import android.support.v4.media.session.MediaSessionCompat
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
