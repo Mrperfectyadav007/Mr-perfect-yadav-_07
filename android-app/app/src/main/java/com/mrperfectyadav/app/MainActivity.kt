@@ -230,7 +230,7 @@ fun MrPerfectApp() {
                     }
                 }
                 item {
-                    Text("Online music search", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("Online full-song search", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = searchQuery,
@@ -253,22 +253,49 @@ fun MrPerfectApp() {
                                     val found = withContext(Dispatchers.IO) {
                                         runCatching {
                                             val encoded = URLEncoder.encode(q, "UTF-8")
-                                            val connection = (URL("https://itunes.apple.com/search?term=$encoded&entity=song&limit=25&country=IN").openConnection() as HttpURLConnection)
-                                            connection.connectTimeout = 12000
-                                            connection.readTimeout = 12000
+                                            val query = q.split(Regex("\\s+")).filter { it.isNotBlank() }.joinToString(" AND ") { term ->
+                                                "title:\\\"$term\\\""
+                                            }
+                                            val encoded = URLEncoder.encode("mediatype:audio AND ($query)", "UTF-8")
+                                            val searchUrl = URL("https://archive.org/advancedsearch.php?q=$encoded&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=licenseurl&rows=15&page=1&output=json")
+                                            val connection = (searchUrl.openConnection() as HttpURLConnection)
+                                            connection.connectTimeout = 15000
+                                            connection.readTimeout = 20000
                                             connection.requestMethod = "GET"
                                             try {
                                                 val body = connection.inputStream.bufferedReader().use { it.readText() }
-                                                val results = JSONObject(body).getJSONArray("results")
+                                                val docs = JSONObject(body).getJSONObject("response").getJSONArray("docs")
                                                 buildList {
-                                                    for (i in 0 until results.length()) {
-                                                        val item = results.getJSONObject(i)
-                                                        val preview = item.optString("previewUrl")
-                                                        if (preview.startsWith("https://") || preview.startsWith("http://")) {
-                                                            val title = item.optString("trackName", "Unknown track")
-                                                            val artist = item.optString("artistName", "Unknown artist")
-                                                            add(LocalSong(Uri.parse(preview), "$title — $artist"))
-                                                        }
+                                                    for (i in 0 until docs.length()) {
+                                                        val doc = docs.getJSONObject(i)
+                                                        val identifier = doc.optString("identifier")
+                                                        val license = doc.optString("licenseurl").lowercase()
+                                                        if (identifier.isBlank() || !(license.contains("creativecommons.org") || license.contains("publicdomain"))) continue
+                                                        val metadataUrl = URL("https://archive.org/metadata/${Uri.encode(identifier)}")
+                                                        val metaConnection = (metadataUrl.openConnection() as HttpURLConnection)
+                                                        metaConnection.connectTimeout = 10000
+                                                        metaConnection.readTimeout = 12000
+                                                        try {
+                                                            val metaText = metaConnection.inputStream.bufferedReader().use { it.readText() }
+                                                            val files = JSONObject(metaText).optJSONArray("files") ?: continue
+                                                            var audioFile: String? = null
+                                                            for (j in 0 until files.length()) {
+                                                                val file = files.optJSONObject(j) ?: continue
+                                                                val name = file.optString("name")
+                                                                val format = file.optString("format")
+                                                                if (name.lowercase().endsWith(".mp3") &&
+                                                                    (format.contains("mp3", true) || format.contains("audio", true))) {
+                                                                    audioFile = name
+                                                                    break
+                                                                }
+                                                            }
+                                                            if (audioFile != null) {
+                                                                val title = doc.optString("title", "Untitled audio")
+                                                                val creator = doc.optString("creator", "Unknown artist")
+                                                                val streamUrl = "https://archive.org/download/${Uri.encode(identifier)}/${Uri.encode(audioFile!!)}"
+                                                                add(LocalSong(Uri.parse(streamUrl), "$title — $creator"))
+                                                            }
+                                                        } finally { metaConnection.disconnect() }
                                                     }
                                                 }
                                             } finally { connection.disconnect() }
@@ -276,7 +303,7 @@ fun MrPerfectApp() {
                                     }
                                     onlineSongs = found
                                     songs = (songs + found).distinctBy { it.uri }
-                                    searchMessage = if (found.isEmpty()) "No playable previews found. Try another search." else "Tap a song to play its preview inside this app."
+                                    searchMessage = if (found.isEmpty()) "No licensed full tracks found. Try another title or artist." else "Full-length Creative Commons / public-domain tracks found. Tap to stream in this app."
                                     isSearching = false
                                 }
                             }) {
@@ -303,10 +330,10 @@ fun MrPerfectApp() {
                             Text(song.title, color = White, fontSize = 13.sp,
                                 modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
                                 maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            Icon(Icons.Default.PlayCircle, contentDescription = "Play preview", tint = Red)
+                            Icon(Icons.Default.PlayCircle, contentDescription = "Play full track", tint = Red)
                         }
                     }
-                    Text("Online catalog previews • playback stays in this app", color = Muted, fontSize = 10.sp)
+                    Text("Full-length tracks from Internet Archive with Creative Commons / public-domain licensing; playback stays in this app.", color = Muted, fontSize = 10.sp)
                 }
                 item {
                     Card(
@@ -481,7 +508,7 @@ fun MrPerfectApp() {
                         Text("Equalizer and Bass Boost", color = Red, fontWeight = FontWeight.Bold)
                         Text("Use the Audio Equalizer section on the home screen. Bass Boost works when the phone audio effect is supported.", fontSize = 12.sp)
                         Text("Notification / lock-screen controls are not yet integrated in this build.", fontSize = 12.sp, color = Muted)
-                        Text("Online catalog currently supplies short previews, not full-length tracks.", fontSize = 12.sp, color = Muted)
+                        Text("Online search streams full-length Creative Commons / public-domain MP3 files from Internet Archive. Mainstream commercial releases may not be available.", fontSize = 12.sp, color = Muted)
                         Text("About MR. PERFECT YADAV", color = Red, fontWeight = FontWeight.Bold)
                         Text("Premium red-and-black music player", fontSize = 12.sp)
                     }
