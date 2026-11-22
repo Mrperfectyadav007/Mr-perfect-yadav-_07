@@ -47,6 +47,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -307,6 +309,7 @@ fun MrPerfectApp() {
                 }
             }
         }
+        CompositionLocalProvider(LocalTextStyle provides TextStyle(fontWeight = FontWeight.Bold)) {
         Box(Modifier.fillMaxSize()) {
             Image(
                 painter = painterResource(id = R.drawable.home_background),
@@ -359,6 +362,7 @@ fun MrPerfectApp() {
                         SmallLinkCard("Downloads", "Direct file downloads and status", Icons.Default.Download) { currentPage = "DOWNLOADS" }
                         SmallLinkCard("Equalizer", "Sound presets and Bass Boost", Icons.Default.Equalizer) { currentPage = "EQUALIZER" }
                         SmallLinkCard("DJ Toolkit", "DJ controls and tools", Icons.Default.GraphicEq) { currentPage = "DJ"; showDjToolkit = true }
+                        SmallLinkCard("Studio Master", "Recording, mixing and vocal effects", Icons.Default.Mic) { currentPage = "STUDIO" }
                         SmallLinkCard("AI Assistant", "Open the assistant chat", Icons.Default.AutoAwesome) { currentPage = "AI"; showAssistant = true }
                         SmallLinkCard("Settings", "Playback and app updates", Icons.Default.Settings) { currentPage = "SETTINGS"; showSettings = true }
                         if (!sharedYoutubeUrl.isNullOrBlank()) {
@@ -1034,6 +1038,30 @@ fun MrPerfectApp() {
                                 Switch(checked = bassBoostEnabled, onCheckedChange = { bassBoostEnabled = it; runCatching { bassBoost?.enabled = it } })
                             }
                         }
+                        "STUDIO" -> {
+                            Text("STUDIO MASTER", color = Green, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                            Text("Your separate recording and audio-mixing workspace.", color = Muted, fontSize = 13.sp)
+                            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Panel)) {
+                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Mic, contentDescription = null, tint = Green)
+                                        Spacer(Modifier.width(10.dp))
+                                        Text("Voice Recording", color = White, fontWeight = FontWeight.Bold)
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.GraphicEq, contentDescription = null, tint = Blue)
+                                        Spacer(Modifier.width(10.dp))
+                                        Text("Audio Mixer", color = White, fontWeight = FontWeight.Bold)
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Tune, contentDescription = null, tint = Red)
+                                        Spacer(Modifier.width(10.dp))
+                                        Text("Vocal Effects • Echo • Reverb", color = White, fontWeight = FontWeight.Bold)
+                                    }
+                                    Text("Studio controls are a separate workspace. Recording and export controls will be enabled in a later update.", color = Muted, fontSize = 12.sp)
+                                }
+                            }
+                        }
                         "AI" -> {
                             Text("AI Assistant page", color = Green, fontWeight = FontWeight.Bold)
                             Text("Assistant chat is opening. If it is not visible, tap the button below.", color = Muted, fontSize = 12.sp)
@@ -1193,6 +1221,7 @@ private fun FeaturePage(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 content = content
             )
+        }
         }
     }
 }
