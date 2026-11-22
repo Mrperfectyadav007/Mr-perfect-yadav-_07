@@ -72,10 +72,10 @@ import org.json.JSONObject
 private val Black = Color(0xFF070B10)
 private val Panel = Color(0xFF111923)
 private val PanelLight = Color(0xFF1B2A38)
-private val Green = Color(0xFF20D67B)
-private val Blue = Color(0xFF328BFF)
-private val Red = Color(0xFFFF4057)
-private val Purple = Color(0xFF9B5CFF)
+private val Green = Color(0xFF1DB954)
+private val Blue = Color(0xFF1ED760)
+private val Red = Color(0xFF1DB954)
+private val Purple = Color(0xFF168B45)
 private val BrandGradient = listOf(Green, Blue, Purple, Red)
 private val White = Color(0xFFF7FAFF)
 private val Muted = Color(0xFFB8C5D3)
@@ -348,7 +348,7 @@ fun MrPerfectApp() {
                         Column(Modifier.weight(1f)) {
                             Text("MR. PERFECT YADAV", color = Green, fontSize = 12.sp,
                                 fontWeight = FontWeight.Black, letterSpacing = 2.5.sp)
-                            Text("Good music. Good mood.", color = White, fontSize = 25.sp,
+                            Text("Your music. Your vibe.", color = White, fontSize = 25.sp,
                                 fontWeight = FontWeight.ExtraBold)
                         }
                         Image(
@@ -369,7 +369,7 @@ fun MrPerfectApp() {
                 }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text("APP PAGES", color = White, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("EXPLORE YOUR MUSIC", color = White, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
                         SmallLinkCard("Music Player", "Your songs and playback controls", Icons.Default.MusicNote) { currentPage = "MUSIC" }
                         SmallLinkCard("WEB MUSIC PLAYER", "Connect your hosted Telegram Web Player", Icons.Default.Language) { currentPage = "WEB_PLAYER" }
                         SmallLinkCard("YouTube", "Open YouTube separately inside this app", Icons.Default.PlayCircle) { currentPage = "YOUTUBE" }
@@ -396,10 +396,10 @@ fun MrPerfectApp() {
                             ).padding(20.dp)
                         ) {
                             Column(Modifier.align(Alignment.CenterStart)) {
-                                Text("YOUR MUSIC, YOUR WORLD", color = White.copy(alpha = .8f),
+                                Text("ALL YOUR FAVORITES IN ONE PLACE", color = White.copy(alpha = .8f),
                                     fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                                 Spacer(Modifier.height(7.dp))
-                                Text("Play what you love.", color = White, fontSize = 23.sp, fontWeight = FontWeight.Black)
+                                Text("Find your sound.", color = White, fontSize = 23.sp, fontWeight = FontWeight.Black)
                                 Spacer(Modifier.height(12.dp))
                                 Button(
                                     onClick = { picker.launch(arrayOf("audio/*")) },
