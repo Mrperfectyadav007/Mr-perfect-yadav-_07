@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: mr-perfect-yadav-ai
+    runtime: docker
+    dockerfilePath: ./ai-server/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "*"
