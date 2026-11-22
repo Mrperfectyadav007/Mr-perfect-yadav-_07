@@ -77,9 +77,12 @@ private data class LocalSong(val uri: Uri, val title: String)
 
 class MainActivity : ComponentActivity() {
     private var mediaSession: MediaSessionCompat? = null
+    var sharedYoutubeUrl by mutableStateOf<String?>(null)
+        private set
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        receiveSharedYoutubeLink(intent)
         createMusicNotificationChannel()
         mediaSession = MediaSessionCompat(this, "MrPerfectYadavMusic").apply {
             setCallback(object : MediaSessionCompat.Callback() {
@@ -95,6 +98,20 @@ class MainActivity : ComponentActivity() {
             requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
         }
         setContent { MrPerfectApp() }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        receiveSharedYoutubeLink(intent)
+    }
+
+    private fun receiveSharedYoutubeLink(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND) return
+        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
+        val match = Regex("https?://(?:[a-z0-9-]+\\.)*(?:youtube\\.com|youtu\\.be)/[^\\s]+", RegexOption.IGNORE_CASE)
+            .find(sharedText)?.value?.trimEnd('.', ',', ')', ']', '}', '>')
+        if (!match.isNullOrBlank()) sharedYoutubeUrl = match
     }
 
     override fun onDestroy() {
@@ -121,6 +138,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MrPerfectApp() {
     val context = LocalContext.current
+    val sharedYoutubeUrl = (context as? MainActivity)?.sharedYoutubeUrl
     var searchQuery by remember { mutableStateOf("") }
     var onlineSongs by remember { mutableStateOf(listOf<LocalSong>()) }
     var isSearching by remember { mutableStateOf(false) }
@@ -362,6 +380,34 @@ fun MrPerfectApp() {
                             }
                             Icon(Icons.Default.MusicNote, contentDescription = null,
                                 tint = White.copy(alpha = .16f), modifier = Modifier.size(112.dp).align(Alignment.CenterEnd))
+                        }
+                    }
+                }
+                item {
+                    if (!sharedYoutubeUrl.isNullOrBlank()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = Panel)
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Share, contentDescription = null, tint = Red)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("YouTube link received", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                                }
+                                Text(sharedYoutubeUrl!!, color = Muted, fontSize = 12.sp)
+                                Text("You can open this shared link in YouTube. Offline saving is available through YouTube Music Premium where supported; this app cannot extract YouTube audio/video into an MP3 or MP4 file.", color = Muted, fontSize = 12.sp)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(
+                                        onClick = { openLink(context, sharedYoutubeUrl!!) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = White)
+                                    ) { Text("Open YouTube") }
+                                    OutlinedButton(onClick = { openLink(context, "https://music.youtube.com/") }) {
+                                        Text("YouTube Music")
+                                    }
+                                }
+                            }
                         }
                     }
                 }
