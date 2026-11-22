@@ -69,6 +69,7 @@ private val White = Color(0xFFF7F7F7)
 private val Muted = Color(0xFFB8B8B8)
 
 private data class LocalSong(val uri: Uri, val title: String)
+private data class ContentItem(val title: String, val kind: String, val uri: String = "", val note: String = "")
 
 class MainActivity : ComponentActivity() {
     private var mediaSession: MediaSessionCompat? = null
@@ -138,9 +139,36 @@ fun MrPerfectApp() {
     var aiPrompt by remember { mutableStateOf("") }
     var aiBusy by remember { mutableStateOf(false) }
     var aiMessages by remember { mutableStateOf(listOf<Pair<String, String>>()) }
+    var showContentManager by remember { mutableStateOf(false) }
+    var contentItems by remember { mutableStateOf(loadContentItems(context)) }
+    var contentTitle by remember { mutableStateOf("") }
+    var contentNote by remember { mutableStateOf("") }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
     val player = remember { MediaPlayer() }
+
+    val contentPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        val added = uris.map { uri ->
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            val name = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst() && column >= 0) cursor.getString(column) else null
+            } ?: (uri.lastPathSegment ?: "Saved file")
+            val mime = context.contentResolver.getType(uri).orEmpty()
+            val kind = when {
+                mime.startsWith("image/") -> "Image"
+                mime.startsWith("video/") -> "Video"
+                mime == "application/pdf" -> "PDF"
+                else -> "File"
+            }
+            ContentItem(name, kind, uri.toString())
+        }
+        contentItems = (contentItems + added).distinctBy { it.uri.ifBlank { it.title + it.note } }
+        saveContentItems(context, contentItems)
+        Toast.makeText(context, "${added.size} file(s) library में जोड़ी गईं", Toast.LENGTH_SHORT).show()
+    }
 
     val picker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
@@ -321,6 +349,24 @@ fun MrPerfectApp() {
                                 Text("JARVIS AI ASSISTANT", color = White, fontWeight = FontWeight.Black, fontSize = 16.sp)
                                 Text("Gemini AI • Hindi chat • Ask anything", color = Muted, fontSize = 11.sp)
                             }
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Red)
+                        }
+                    }
+                }
+                item {
+                    Card(
+                        onClick = { showContentManager = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Panel)
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(17.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Red, modifier = Modifier.size(32.dp))
+                            Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                                Text("CONTENT MANAGER", color = White, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                                Text("PDF • Photos • Videos • Notes", color = Muted, fontSize = 11.sp)
+                            }
+                            Text("${contentItems.size}", color = Red, fontWeight = FontWeight.Black, fontSize = 18.sp)
                             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Red)
                         }
                     }
@@ -721,7 +767,11 @@ fun MrPerfectApp() {
                                 aiBusy = true
                                 scope.launch {
                                     val answer = withContext(Dispatchers.IO) {
-                                        runCatching { askGeminiDirect(geminiApiKey, question) }
+                                        runCatching {
+                                            val notes = contentItems.filter { it.kind == "Text" && it.note.isNotBlank() }
+                                                .joinToString("\\n\\n") { "${it.title}: ${it.note}" }
+                                            askGeminiDirect(geminiApiKey, question, notes)
+                                        }
                                             .getOrElse { "जवाब नहीं मिल पाया: ${it.message ?: "नेटवर्क या API Key जाँचें"}" }
                                     }
                                     aiMessages = aiMessages + ("assistant" to answer)
@@ -736,6 +786,89 @@ fun MrPerfectApp() {
                     }
                 },
                 confirmButton = { TextButton(onClick = { if (!aiBusy) showAiAssistant = false }) { Text("Close", color = Red) } },
+                containerColor = Panel,
+                titleContentColor = White,
+                textContentColor = White
+            )
+        }
+        if (showContentManager) {
+            AlertDialog(
+                onDismissRequest = { showContentManager = false },
+                title = { Text("CONTENT MANAGER", color = White, fontWeight = FontWeight.Black) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.heightIn(max = 540.dp)) {
+                        Text("मोबाइल से कंटेंट जोड़ें", color = Red, fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = { contentPicker.launch(arrayOf("application/pdf", "image/*", "video/*", "text/*")) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = White)
+                        ) {
+                            Icon(Icons.Default.UploadFile, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("PDF / Photo / Video / File चुनें")
+                        }
+                        Divider(color = PanelLight)
+                        Text("JARVIS के लिए टेक्स्ट नोट", color = Red, fontWeight = FontWeight.Bold)
+                        OutlinedTextField(
+                            value = contentTitle, onValueChange = { contentTitle = it },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true,
+                            placeholder = { Text("नोट का शीर्षक") }
+                        )
+                        OutlinedTextField(
+                            value = contentNote, onValueChange = { contentNote = it },
+                            modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 4,
+                            placeholder = { Text("यहाँ अपना ज्ञान / नोट लिखें…") }
+                        )
+                        Button(
+                            onClick = {
+                                if (contentNote.isNotBlank()) {
+                                    val item = ContentItem(contentTitle.ifBlank { "मेरी नोट" }, "Text", note = contentNote.trim())
+                                    contentItems = contentItems + item
+                                    saveContentItems(context, contentItems)
+                                    contentTitle = ""
+                                    contentNote = ""
+                                    Toast.makeText(context, "नोट सेव हो गया", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            enabled = contentNote.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = PanelLight, contentColor = White)
+                        ) { Text("Save Note") }
+                        Divider(color = PanelLight)
+                        Text("Saved content (${contentItems.size})", color = White, fontWeight = FontWeight.Bold)
+                        if (contentItems.isEmpty()) {
+                            Text("अभी कोई कंटेंट नहीं है।", color = Muted, fontSize = 12.sp)
+                        } else {
+                            LazyColumn(Modifier.heightIn(max = 180.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                itemsIndexed(contentItems) { index, item ->
+                                    Row(Modifier.fillMaxWidth().background(Black, RoundedCornerShape(9.dp)).padding(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            when (item.kind) {
+                                                "PDF" -> Icons.Default.PictureAsPdf
+                                                "Image" -> Icons.Default.Image
+                                                "Video" -> Icons.Default.Videocam
+                                                "Text" -> Icons.Default.Description
+                                                else -> Icons.Default.AttachFile
+                                            }, contentDescription = null, tint = Red
+                                        )
+                                        Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                                            Text(item.title, color = White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(item.kind, color = Muted, fontSize = 10.sp)
+                                        }
+                                        IconButton(onClick = {
+                                            contentItems = contentItems.filterIndexed { i, _ -> i != index }
+                                            saveContentItems(context, contentItems)
+                                        }) { Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Red) }
+                                    }
+                                }
+                            }
+                        }
+                        Text("ध्यान दें: लिखे गए Text Notes JARVIS के जवाबों में संदर्भ बनेंगे। चुनी गई PDF/फोटो/वीडियो अभी फोन में सुरक्षित सूचीबद्ध होंगे; उनका स्वतः पढ़ना/विश्लेषण अगला फीचर है।",
+                            color = Muted, fontSize = 10.sp)
+                    }
+                },
+                confirmButton = { TextButton(onClick = { showContentManager = false }) { Text("Done", color = Red) } },
                 containerColor = Panel,
                 titleContentColor = White,
                 textContentColor = White
@@ -890,7 +1023,7 @@ private fun openLink(context: android.content.Context, url: String) {
     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
 }
 
-private suspend fun askGeminiDirect(apiKey: String, prompt: String): String {
+private suspend fun askGeminiDirect(apiKey: String, prompt: String, savedNotes: String = ""): String {
     val endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
         URLEncoder.encode(apiKey, "UTF-8")
     val requestBody = JSONObject().apply {
@@ -898,7 +1031,9 @@ private suspend fun askGeminiDirect(apiKey: String, prompt: String): String {
             JSONObject().put("text", "You are JARVIS, the helpful Hindi-first personal AI assistant for MR. PERFECT YADAV. Reply clearly and safely. Do not claim to perform actions on the device unless an available app feature actually performed them.")
         )))
         put("contents", org.json.JSONArray().put(
-            JSONObject().put("role", "user").put("parts", org.json.JSONArray().put(JSONObject().put("text", prompt)))
+            JSONObject().put("role", "user").put("parts", org.json.JSONArray().put(JSONObject().put("text",
+                if (savedNotes.isBlank()) prompt else "नीचे दिए गए यूज़र के सेव किए हुए नोट्स को संदर्भ के रूप में उपयोग करें। यदि नोट्स में उत्तर नहीं है तो सामान्य ज्ञान से स्पष्ट बताएं।\\n\\nनोट्स:\\n$savedNotes\\n\\nप्रश्न: $prompt"
+            )))
         ))
         put("generationConfig", JSONObject().put("temperature", 0.7).put("maxOutputTokens", 1200))
     }
@@ -927,4 +1062,36 @@ private suspend fun askGeminiDirect(apiKey: String, prompt: String): String {
     } finally {
         connection.disconnect()
     }
+}
+
+
+private fun loadContentItems(context: Context): List<ContentItem> {
+    return runCatching {
+        val raw = context.getSharedPreferences("mr_perfect_content", Context.MODE_PRIVATE)
+            .getString("items", "[]") ?: "[]"
+        val array = org.json.JSONArray(raw)
+        (0 until array.length()).mapNotNull { i ->
+            val obj = array.optJSONObject(i) ?: return@mapNotNull null
+            ContentItem(
+                obj.optString("title"),
+                obj.optString("kind"),
+                obj.optString("uri"),
+                obj.optString("note")
+            )
+        }
+    }.getOrDefault(emptyList())
+}
+
+private fun saveContentItems(context: Context, items: List<ContentItem>) {
+    val array = org.json.JSONArray()
+    items.forEach { item ->
+        array.put(JSONObject().apply {
+            put("title", item.title)
+            put("kind", item.kind)
+            put("uri", item.uri)
+            put("note", item.note)
+        })
+    }
+    context.getSharedPreferences("mr_perfect_content", Context.MODE_PRIVATE)
+        .edit().putString("items", array.toString()).apply()
 }
