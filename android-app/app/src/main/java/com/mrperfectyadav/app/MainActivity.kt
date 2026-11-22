@@ -491,8 +491,32 @@ fun MrPerfectApp() {
                                 Spacer(Modifier.width(8.dp))
                                 Text("Open Download Manager")
                             }
+                            Text("THIRD-PARTY DOWNLOAD SOURCES", color = Green, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("Open trusted libraries that provide downloads for content marked free to download or public domain.", color = Muted, fontSize = 11.sp)
+                            OutlinedButton(
+                                onClick = { openLink(context, "https://archive.org/details/audio") },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Internet Archive Audio Library") }
+                            OutlinedButton(
+                                onClick = { openLink(context, "https://pixabay.com/music/") },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Pixabay Music Downloads") }
+                            OutlinedButton(
+                                onClick = {
+                                    val raw = permittedFileUrl.trim()
+                                    val uri = runCatching { Uri.parse(raw) }.getOrNull()
+                                    if (uri != null && uri.scheme in listOf("https", "http") && !uri.host.isNullOrBlank()) {
+                                        val share = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, raw)
+                                        }
+                                        runCatching { context.startActivity(Intent.createChooser(share, "Open link with another app")) }
+                                    } else downloadMessage = "Paste a valid website or media URL first."
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Send link to another downloader app") }
                             Text(
-                                "Download notifications and completed files are managed by Android. Find saved media in Downloads.",
+                                "Use third-party providers only for files you are allowed to save. YouTube links open in YouTube; this app does not extract YouTube streams.",
                                 color = Muted, fontSize = 11.sp
                             )
                         }
@@ -1037,7 +1061,21 @@ fun MrPerfectApp() {
                             }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Black)) { Icon(Icons.Default.Download, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Download file") }
                             if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 12.sp)
                             OutlinedButton(onClick = { runCatching { context.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)) } }, modifier = Modifier.fillMaxWidth()) { Text("Open Android Download Manager") }
-                            Text("YouTube links open in YouTube; this app does not extract YouTube streams into MP3/MP4.", color = Muted, fontSize = 11.sp)
+                            Text("THIRD-PARTY DOWNLOAD SOURCES", color = Green, fontSize = 13.sp)
+                            OutlinedButton(onClick = { openLink(context, "https://archive.org/details/audio") }, modifier = Modifier.fillMaxWidth()) { Text("Internet Archive Audio Library") }
+                            OutlinedButton(onClick = { openLink(context, "https://pixabay.com/music/") }, modifier = Modifier.fillMaxWidth()) { Text("Pixabay Music Downloads") }
+                            OutlinedButton(
+                                onClick = {
+                                    val raw = permittedFileUrl.trim()
+                                    val uri = runCatching { Uri.parse(raw) }.getOrNull()
+                                    if (uri != null && uri.scheme in listOf("https", "http") && !uri.host.isNullOrBlank()) {
+                                        val share = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, raw) }
+                                        runCatching { context.startActivity(Intent.createChooser(share, "Open link with another app")) }
+                                    } else downloadMessage = "Paste a valid website or media URL first."
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Send link to another downloader app") }
+                            Text("Use third-party providers only for files you are allowed to save. YouTube links open in YouTube; this app does not extract YouTube streams.", color = Muted, fontSize = 11.sp)
                         }
                         "EQUALIZER" -> {
                             Card(
