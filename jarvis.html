@@ -33,7 +33,7 @@ main{max-width:900px;margin:22px auto;padding:0 14px 50px}.hero{text-align:cente
 <section id="settings" class="panel hidden">
 <h2>⚙️ JARVIS Settings</h2><label>Gemini API Key</label><input id="apiKey" type="password" autocomplete="off" placeholder="अपनी Gemini API Key डालें">
 <div class="row" style="margin-top:10px"><button class="primary" id="saveKey">Key सेव करें</button><button id="showKey">दिखाएँ</button></div>
-<label>Gemini Model</label><select id="model"><option value="gemini-2.5-flash">Gemini 2.5 Flash</option><option value="gemini-2.0-flash">Gemini 2.0 Flash</option></select>
+<label>Gemini Model</label><select id="model"><option value="gemini-3.8-flash">Gemini 3.8 Flash (Recommended)</option></select>
 <div class="warning">सुरक्षा: API Key इस ब्राउज़र के local storage में सेव होगी। वेबसाइट/डिवाइस तक पहुँच रखने वाला व्यक्ति इसे निकाल सकता है। इसे सार्वजनिक या साझा डिवाइस पर सेव न करें।</div>
 <p class="small">यह बिना अपने सर्वर के चलने वाला वेब वर्जन है। API इस्तेमाल पर Google की quota और billing शर्तें लागू हो सकती हैं।</p>
 </section>
@@ -46,7 +46,7 @@ function renderNotes(){const ns=getNotes();$('notes').innerHTML=ns.length?ns.map
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));['chat','content','settings'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));});
 $('saveKey').onclick=()=>{localStorage.setItem('jarvis_gemini_key',$('apiKey').value.trim());localStorage.setItem('jarvis_model',$('model').value);$('status').textContent='● Key saved';alert('API Key सेव हो गई।')};
-$('apiKey').value=localStorage.getItem('jarvis_gemini_key')||'';$('model').value=localStorage.getItem('jarvis_model')||'gemini-2.5-flash';
+$('apiKey').value=localStorage.getItem('jarvis_gemini_key')||'';$('model').value=localStorage.getItem('jarvis_model')||'gemini-3.8-flash';
 $('showKey').onclick=()=> $('apiKey').type=$('apiKey').type==='password'?'text':'password';
 $('saveNote').onclick=()=>{const title=$('noteTitle').value.trim(),body=$('noteBody').value.trim();if(!body){alert('नोट लिखें।');return}let a=getNotes();a.unshift({title:title||'बिना शीर्षक',body});localStorage.setItem('jarvis_notes',JSON.stringify(a));$('noteTitle').value='';$('noteBody').value='';renderNotes()};
 $('files').onchange=()=>{const fs=[...$('files').files];$('fileList').innerHTML=fs.map(f=>'<div class="item"><strong>'+esc(f.name)+'</strong><p>'+esc(f.type||'Unknown type')+' · '+(f.size/1024).toFixed(1)+' KB</p></div>').join('')};
