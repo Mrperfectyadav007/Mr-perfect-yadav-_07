@@ -16,9 +16,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.provider.OpenableColumns
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.webkit.WebChromeClient
 import androidx.activity.ComponentActivity
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
@@ -49,7 +46,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -130,11 +126,6 @@ fun MrPerfectApp() {
     var isSearching by remember { mutableStateOf(false) }
     var searchMessage by remember { mutableStateOf("Search for a song, artist or album.") }
     var downloadMessage by remember { mutableStateOf("") }
-    var videoSearchQuery by remember { mutableStateOf("") }
-    var youtubeMusicQuery by remember { mutableStateOf("") }
-    var showYoutubeMusic by remember { mutableStateOf(false) }
-    var youtubeMusicWebView by remember { mutableStateOf<WebView?>(null) }
-    var videoUrlInput by remember { mutableStateOf("") }
     var permittedFileUrl by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     var songs by remember { mutableStateOf(listOf<LocalSong>()) }
@@ -382,133 +373,9 @@ fun MrPerfectApp() {
                     ) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.MusicVideo, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.Download, contentDescription = null, tint = Green)
                                 Spacer(Modifier.width(8.dp))
-                                Text("YouTube Music", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                            }
-                            Text(
-                                "Search music and listen in the official YouTube Music app. Playback, Premium and offline features follow your YouTube Music account and availability.",
-                                color = Muted, fontSize = 12.sp
-                            )
-                            OutlinedTextField(
-                                value = youtubeMusicQuery,
-                                onValueChange = { youtubeMusicQuery = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                placeholder = { Text("Song, artist or album") },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = White, unfocusedTextColor = White,
-                                    focusedBorderColor = Red, unfocusedBorderColor = PanelLight
-                                )
-                            )
-                            Button(
-                                onClick = { showYoutubeMusic = true },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = White)
-                            ) {
-                                Icon(Icons.Default.PlayCircle, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Search & Open Inside App")
-                            }
-                            OutlinedButton(
-                                onClick = { youtubeMusicQuery = ""; showYoutubeMusic = true },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(Icons.Default.MusicVideo, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Open YouTube Music Inside App")
-                            }
-                        }
-                    }
-                }
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Panel)
-                    ) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = Red)
-                                Spacer(Modifier.width(8.dp))
-                                Text("My YouTube Videos", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                            }
-                            Text(
-                                "For videos you are allowed to save, open them in the official YouTube app and use YouTube's Download button when it is offered. Your own uploads may also be downloaded from YouTube Studio.",
-                                color = Muted, fontSize = 12.sp
-                            )
-                            Button(
-                                onClick = { openLink(context, "https://www.youtube.com/") },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = White)
-                            ) {
-                                Icon(Icons.Default.PlayCircle, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Open YouTube — Official Download")
-                            }
-                            OutlinedButton(
-                                onClick = { openLink(context, "https://studio.youtube.com/") },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(Icons.Default.OpenInNew, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Open YouTube Studio — My Videos")
-                            }
-                        }
-                    }
-                }
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Panel)
-                    ) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = Red)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Video Search & Link", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                            }
-                            OutlinedTextField(
-                                value = videoSearchQuery,
-                                onValueChange = { videoSearchQuery = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                placeholder = { Text("Search YouTube videos") },
-                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = White, unfocusedTextColor = White, focusedBorderColor = Blue, unfocusedBorderColor = PanelLight)
-                            )
-                            Button(
-                                onClick = { if (videoSearchQuery.isNotBlank()) openLink(context, "https://www.youtube.com/results?search_query=" + URLEncoder.encode(videoSearchQuery, "UTF-8")) },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Blue)
-                            ) {
-                                Icon(Icons.Default.Search, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Search YouTube")
-                            }
-                            OutlinedTextField(
-                                value = videoUrlInput,
-                                onValueChange = { videoUrlInput = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                placeholder = { Text("Paste YouTube video link") },
-                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = White, unfocusedTextColor = White, focusedBorderColor = Green, unfocusedBorderColor = PanelLight)
-                            )
-                            OutlinedButton(
-                                onClick = {
-                                    val parsed = runCatching { Uri.parse(videoUrlInput.trim()) }.getOrNull()
-                                    val host = parsed?.host?.lowercase().orEmpty()
-                                    if (parsed?.scheme in listOf("https", "http") && (host == "youtube.com" || host.endsWith(".youtube.com") || host == "youtu.be")) {
-                                        openLink(context, parsed.toString())
-                                    } else {
-                                        downloadMessage = "Please paste a valid YouTube link."
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(Icons.Default.OpenInNew, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Open Video")
+                                Text("Direct Media Downloads", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                             }
                             Divider(color = PanelLight)
                             Text("Paste a direct HTTPS link to a media file you own or are authorized to download. Supported: MP3, M4A, OGG, MP4, WEBM.", color = Muted, fontSize = 12.sp)
@@ -724,7 +591,6 @@ fun MrPerfectApp() {
                         }
                     }
                     if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 11.sp)
-                    Text("For YouTube, use the official app's Download button when available. Direct file downloads are limited to media you own or are authorized to download.", color = Muted, fontSize = 10.sp)
                 }
                 item {
                     Card(
@@ -958,55 +824,6 @@ fun MrPerfectApp() {
                     }
                 }
             }
-            }
-        }
-        BackHandler(enabled = showYoutubeMusic) {
-            showYoutubeMusic = false
-        }
-        if (showYoutubeMusic) {
-            DisposableEffect(Unit) {
-                onDispose {
-                    runCatching { youtubeMusicWebView?.stopLoading() }
-                    runCatching { youtubeMusicWebView?.destroy() }
-                    youtubeMusicWebView = null
-                }
-            }
-            Column(
-                Modifier.fillMaxSize().background(Black)
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().background(Panel).padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { showYoutubeMusic = false }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = White)
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text("YouTube Music", color = White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text("Inside MR. PERFECT YADAV", color = Muted, fontSize = 10.sp)
-                    }
-                    IconButton(onClick = { youtubeMusicWebView?.reload() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Green)
-                    }
-                }
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { ctx ->
-                        WebView(ctx).apply {
-                            youtubeMusicWebView = this
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            settings.mediaPlaybackRequiresUserGesture = true
-                            settings.loadsImagesAutomatically = true
-                            webViewClient = WebViewClient()
-                            webChromeClient = WebChromeClient()
-                            val q = URLEncoder.encode(youtubeMusicQuery.trim(), "UTF-8")
-                            val target = if (q.isBlank()) "https://music.youtube.com/" else "https://music.youtube.com/search?q=$q"
-                            loadUrl(target)
-                        }
-                    },
-                    update = { webView -> youtubeMusicWebView = webView }
-                )
             }
         }
         BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
