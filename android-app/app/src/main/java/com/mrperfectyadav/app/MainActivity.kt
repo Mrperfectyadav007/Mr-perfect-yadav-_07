@@ -131,8 +131,12 @@ class MainActivity : ComponentActivity() {
             val channel = NotificationChannel(
                 NotificationController.CHANNEL_ID,
                 "Music playback",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply { description = "Playback controls for MR. PERFECT YADAV Music" }
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Premium MR. PERFECT YADAV music controls and playback pop-up"
+                enableLights(true)
+                lightColor = android.graphics.Color.rgb(155, 92, 255)
+            }
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
@@ -1281,7 +1285,7 @@ private object PlaybackBridge {
 }
 
 private object NotificationController {
-    const val CHANNEL_ID = "mr_perfect_music_playback"
+    const val CHANNEL_ID = "mr_perfect_music_playback_v2"
     private const val NOTIFICATION_ID = 701
     var sessionToken: MediaSessionCompat.Token? = null
 
@@ -1293,8 +1297,13 @@ private object NotificationController {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.app_icon)
             .setContentTitle(title)
-            .setContentText("MR. PERFECT YADAV MUSIC")
-            .setSubText("Full-track player")
+            .setContentText(if (isPlaying) "NOW PLAYING  •  MR. PERFECT YADAV" else "PAUSED  •  MR. PERFECT YADAV")
+            .setSubText("MR. PERFECT YADAV MUSIC  •  PREMIUM PLAYER")
+            .setTicker("MR. PERFECT YADAV MUSIC")
+            .setColor(android.graphics.Color.rgb(155, 92, 255))
+            .setColorized(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             .setOnlyAlertOnce(true)
             .setOngoing(isPlaying)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
