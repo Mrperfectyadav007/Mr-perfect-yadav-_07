@@ -58,12 +58,15 @@ import java.net.URL
 import java.net.URLEncoder
 import org.json.JSONObject
 
-private val Black = Color(0xFF080808)
-private val Panel = Color(0xFF181818)
-private val PanelLight = Color(0xFF242424)
-private val Red = Color(0xFFFF3030)
-private val White = Color(0xFFF7F7F7)
-private val Muted = Color(0xFFB8B8B8)
+private val Black = Color(0xFF070B10)
+private val Panel = Color(0xFF111923)
+private val PanelLight = Color(0xFF1B2A38)
+private val Green = Color(0xFF20D67B)
+private val Blue = Color(0xFF328BFF)
+private val Red = Color(0xFFFF4057)
+private val BrandGradient = listOf(Green, Blue, Red)
+private val White = Color(0xFFF7FAFF)
+private val Muted = Color(0xFFB8C5D3)
 
 private data class LocalSong(val uri: Uri, val title: String)
 
@@ -255,7 +258,8 @@ fun MrPerfectApp() {
     }
 
     MaterialTheme(colorScheme = darkColorScheme(
-        primary = Red, background = Black, surface = Panel,
+        primary = Blue, secondary = Green, tertiary = Red,
+        background = Black, surface = Panel,
         onPrimary = White, onBackground = White, onSurface = White
     )) {
         BackHandler(enabled = showAssistant || showSettings || onlineSongs.isNotEmpty() || searchQuery.isNotBlank()) {
@@ -296,7 +300,7 @@ fun MrPerfectApp() {
                 item {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("MR. PERFECT YADAV", color = Red, fontSize = 12.sp,
+                            Text("MR. PERFECT YADAV", color = Green, fontSize = 12.sp,
                                 fontWeight = FontWeight.Black, letterSpacing = 2.5.sp)
                             Text("Good music. Good mood.", color = White, fontSize = 25.sp,
                                 fontWeight = FontWeight.ExtraBold)
@@ -310,7 +314,7 @@ fun MrPerfectApp() {
                             Icon(Icons.Default.AutoAwesome, contentDescription = "AI Assistant", tint = Red)
                         }
                         IconButton(onClick = { showSettings = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Red)
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Blue)
                         }
                     }
                 }
@@ -322,7 +326,7 @@ fun MrPerfectApp() {
                     ) {
                         Box(
                             Modifier.fillMaxSize().background(
-                                Brush.linearGradient(listOf(Color(0xFF9E1515), Color(0xFF3A0808), Color(0xFF171717)))
+                                Brush.linearGradient(listOf(Color(0xFF123D2D), Color(0xFF12365E), Color(0xFF4A1727), Color(0xFF101923)))
                             ).padding(20.dp)
                         ) {
                             Column(Modifier.align(Alignment.CenterStart)) {
@@ -354,7 +358,7 @@ fun MrPerfectApp() {
                     ) {
                         Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Verified, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.Verified, contentDescription = null, tint = Green)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Licensed music catalog", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                             }
@@ -364,7 +368,7 @@ fun MrPerfectApp() {
                             )
                             Divider(color = PanelLight)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Gavel, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.Gavel, contentDescription = null, tint = Blue)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Free legal full-length music", color = White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
@@ -373,7 +377,7 @@ fun MrPerfectApp() {
                                 color = Muted, fontSize = 12.sp
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Green)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Your phone's MP3 files", color = White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
@@ -396,8 +400,8 @@ fun MrPerfectApp() {
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = White, unfocusedTextColor = White,
-                            focusedBorderColor = Red, unfocusedBorderColor = PanelLight,
-                            focusedLabelColor = Red, cursorColor = Red
+                            focusedBorderColor = Blue, unfocusedBorderColor = PanelLight,
+                            focusedLabelColor = Green, cursorColor = Green
                         ),
                         trailingIcon = {
                             IconButton(onClick = {
@@ -474,7 +478,7 @@ fun MrPerfectApp() {
                     Spacer(Modifier.height(6.dp))
                     Text(searchMessage, color = Muted, fontSize = 12.sp)
                     if (isSearching) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Red)
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Blue, trackColor = PanelLight)
                     }
                     onlineSongs.forEach { song ->
                         Row(
@@ -507,7 +511,7 @@ fun MrPerfectApp() {
                     ) {
                         Column(Modifier.fillMaxWidth().padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Equalizer, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.Equalizer, contentDescription = null, tint = Blue)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Audio Equalizer", color = White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             }
@@ -595,7 +599,7 @@ fun MrPerfectApp() {
                     item {
                         Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
                             Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.LibraryMusic, contentDescription = null, tint = Red, modifier = Modifier.size(38.dp))
+                                Icon(Icons.Default.LibraryMusic, contentDescription = null, tint = Green, modifier = Modifier.size(38.dp))
                                 Spacer(Modifier.height(8.dp))
                                 Text("No songs added yet", color = White, fontWeight = FontWeight.Bold)
                                 Text("Add MP3 files from your phone to start listening.", color = Muted,
@@ -607,14 +611,14 @@ fun MrPerfectApp() {
                     itemsIndexed(songs) { index, song ->
                         Row(
                             Modifier.fillMaxWidth().background(
-                                if (index == currentIndex) Color(0xFF351010) else Panel,
+                                if (index == currentIndex) Color(0xFF123B35) else Panel,
                                 RoundedCornerShape(14.dp)
                             ).clickable { playTrack(index) }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(Modifier.size(44.dp).background(PanelLight, RoundedCornerShape(10.dp)),
                                 contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = Blue)
                             }
                             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                                 Text(song.title, color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
