@@ -12,8 +12,8 @@ android {
         applicationId = "com.mrperfectyadav.app"
         minSdk = 23
         targetSdk = 36
-        versionCode = 2
-        versionName = "2.0 Premium"
+        versionCode = 5
+        versionName = "5.0 Premium"
     }
 
     buildFeatures {
