@@ -127,6 +127,7 @@ fun MrPerfectApp() {
     var searchMessage by remember { mutableStateOf("Search for a song, artist or album.") }
     var downloadMessage by remember { mutableStateOf("") }
     var videoSearchQuery by remember { mutableStateOf("") }
+    var youtubeMusicQuery by remember { mutableStateOf("") }
     var videoUrlInput by remember { mutableStateOf("") }
     var permittedFileUrl by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
@@ -364,6 +365,62 @@ fun MrPerfectApp() {
                             }
                             Icon(Icons.Default.MusicNote, contentDescription = null,
                                 tint = White.copy(alpha = .16f), modifier = Modifier.size(112.dp).align(Alignment.CenterEnd))
+                        }
+                    }
+                }
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Panel)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.MusicVideo, contentDescription = null, tint = Red)
+                                Spacer(Modifier.width(8.dp))
+                                Text("YouTube Music", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                            }
+                            Text(
+                                "Search music and listen in the official YouTube Music app. Playback, Premium and offline features follow your YouTube Music account and availability.",
+                                color = Muted, fontSize = 12.sp
+                            )
+                            OutlinedTextField(
+                                value = youtubeMusicQuery,
+                                onValueChange = { youtubeMusicQuery = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                placeholder = { Text("Song, artist or album") },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = White, unfocusedTextColor = White,
+                                    focusedBorderColor = Red, unfocusedBorderColor = PanelLight
+                                )
+                            )
+                            Button(
+                                onClick = {
+                                    val q = URLEncoder.encode(youtubeMusicQuery.trim(), "UTF-8")
+                                    val target = if (q.isBlank()) "https://music.youtube.com/" else "https://music.youtube.com/search?q=$q"
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
+                                        setPackage("com.google.android.apps.youtube.music")
+                                    }
+                                    runCatching { context.startActivity(intent) }.onFailure {
+                                        openLink(context, target)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = White)
+                            ) {
+                                Icon(Icons.Default.PlayCircle, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Search & Open YouTube Music")
+                            }
+                            OutlinedButton(
+                                onClick = { openLink(context, "https://music.youtube.com/") },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.OpenInNew, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Open YouTube Music")
+                            }
                         }
                     }
                 }
