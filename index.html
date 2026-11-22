@@ -18,7 +18,7 @@ main{max-width:900px;margin:22px auto;padding:0 14px 50px}.hero{text-align:cente
 <nav class="tabs"><button class="tab active" data-tab="chat">AI Assistant</button><button class="tab" data-tab="content">Content Manager</button><button class="tab" data-tab="settings">Settings</button></nav>
 <section id="chat" class="panel">
 <div class="messages" id="messages"><div class="msg bot">राधे राधे! मैं JARVIS हूँ। Settings में Gemini या OpenAI चुनकर मुझसे हिंदी या अंग्रेज़ी में बात करें।</div></div>
-<div class="composer"><textarea id="prompt" rows="1" placeholder="JARVIS से कुछ पूछें..."></textarea><button id="mic" title="Voice input">🎙️</button><button class="primary" id="send">भेजें ➤</button></div>
+<div class="composer"><textarea id="prompt" rows="1" placeholder="JARVIS से कुछ पूछें..."></textarea><button id="mic" title="Voice input">🎙️</button><button id="speakLast" title="आखिरी जवाब सुनें">🔊 सुनें</button><button id="voiceToggle" title="जवाब अपने आप सुनें">🔈 Auto Voice: बंद</button><button class="primary" id="send">भेजें ➤</button></div>
 <div class="small" style="margin-top:9px">🎙️ Voice input आपके Chrome/डिवाइस के speech support पर निर्भर है।</div>
 </section>
 <section id="content" class="panel hidden">
@@ -52,7 +52,7 @@ $('refreshModels').onclick=loadGeminiModels;
 $('showKey').onclick=()=> $('apiKey').type=$('apiKey').type==='password'?'text':'password';
 $('saveNote').onclick=()=>{const title=$('noteTitle').value.trim(),body=$('noteBody').value.trim();if(!body){alert('नोट लिखें।');return}let a=getNotes();a.unshift({title:title||'बिना शीर्षक',body});localStorage.setItem('jarvis_notes',JSON.stringify(a));$('noteTitle').value='';$('noteBody').value='';renderNotes()};
 $('files').onchange=()=>{const fs=[...$('files').files];$('fileList').innerHTML=fs.map(f=>'<div class="item"><strong>'+esc(f.name)+'</strong><p>'+esc(f.type||'Unknown type')+' · '+(f.size/1024).toFixed(1)+' KB</p></div>').join('')};
-function addMsg(text,who){const d=document.createElement('div');d.className='msg '+who;d.textContent=text;$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return d}
+function addMsg(text,who){const d=document.createElement('div');d.className='msg '+who;d.textContent=text;$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return d}\nlet lastAnswer='';let autoVoice=localStorage.getItem('jarvis_auto_voice')==='1';function updateVoiceButton(){$('voiceToggle').textContent=autoVoice?'🔊 Auto Voice: चालू':'🔈 Auto Voice: बंद'}function speakText(text){if(!('speechSynthesis'in window)){alert('इस ब्राउज़र में आवाज़ सुनाने की सुविधा उपलब्ध नहीं है।');return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=/[ऀ-ॿ]/.test(text)?'hi-IN':'en-IN';u.rate=1;u.pitch=1;speechSynthesis.speak(u)}$('speakLast').onclick=()=>{if(lastAnswer)speakText(lastAnswer);else alert('पहले AI से कोई जवाब लें।')};$('voiceToggle').onclick=()=>{autoVoice=!autoVoice;localStorage.setItem('jarvis_auto_voice',autoVoice?'1':'0');updateVoiceButton();if(!autoVoice&&'speechSynthesis'in window)speechSynthesis.cancel()};updateVoiceButton();
 async function send(){
  const q=$('prompt').value.trim();
  if(!q)return;
@@ -97,13 +97,13 @@ async function send(){
    if(!answer&&data.promptFeedback?.blockReason)throw new Error('यह प्रश्न सुरक्षा कारण से रोका गया: '+data.promptFeedback.blockReason);
   }
   if(!answer)throw new Error('AI से खाली जवाब मिला। Settings में API Key और Model जाँचें।');
-  wait.textContent=answer;$('status').textContent='● Ready';
+  wait.textContent=answer;lastAnswer=answer;if(autoVoice)speakText(answer);$('status').textContent='● Ready';
  }catch(e){
   wait.textContent=e.name==='AbortError'?'45 सेकंड में जवाब नहीं आया। नेटवर्क या API जाँचें।':'त्रुटि: '+e.message;
   $('status').textContent='● Error';
  }finally{clearTimeout(timer);$('send').disabled=false;}
 }
 $('send').onclick=send;$('prompt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
-$('mic').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('इस Chrome में voice input उपलब्ध नहीं है।');return}const r=new SR();r.lang='hi-IN';r.onresult=e=>$('prompt').value=e.results[0][0].transcript;r.onerror=()=>alert('Voice input शुरू नहीं हो पाया।');r.start()};
+$('mic').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('इस Chrome में voice input उपलब्ध नहीं है।');return}const r=new SR();r.lang='hi-IN';r.interimResults=false;r.onresult=e=>{$('prompt').value=e.results[0][0].transcript;$('prompt').focus()};r.onerror=()=>alert('Voice input शुरू नहीं हो पाया। Chrome में microphone permission दें।');r.start()};
 renderNotes();
 </script></body></html>
