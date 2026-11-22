@@ -166,6 +166,7 @@ fun MrPerfectApp() {
     var updateUrl by remember { mutableStateOf<String?>(null) }
     var checkingUpdates by remember { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
+    var currentPage by remember { mutableStateOf("HOME") }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
     val player = remember { MediaPlayer() }
@@ -348,6 +349,20 @@ fun MrPerfectApp() {
                         }
                         IconButton(onClick = { showSettings = true }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Blue)
+                        }
+                    }
+                }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text("APP PAGES", color = White, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
+                        SmallLinkCard("Music Player", "Your songs and playback controls", Icons.Default.MusicNote) { currentPage = "MUSIC" }
+                        SmallLinkCard("Downloads", "Direct file downloads and status", Icons.Default.Download) { currentPage = "DOWNLOADS" }
+                        SmallLinkCard("Equalizer", "Sound presets and Bass Boost", Icons.Default.Equalizer) { currentPage = "EQUALIZER" }
+                        SmallLinkCard("DJ Toolkit", "DJ controls and tools", Icons.Default.GraphicEq) { currentPage = "DJ"; showDjToolkit = true }
+                        SmallLinkCard("AI Assistant", "Open the assistant chat", Icons.Default.AutoAwesome) { currentPage = "AI"; showAssistant = true }
+                        SmallLinkCard("Settings", "Playback and app updates", Icons.Default.Settings) { currentPage = "SETTINGS"; showSettings = true }
+                        if (!sharedYoutubeUrl.isNullOrBlank()) {
+                            SmallLinkCard("Shared YouTube Link", "View the link shared to this app", Icons.Default.Share) { currentPage = "SHARED" }
                         }
                     }
                 }
@@ -973,6 +988,74 @@ fun MrPerfectApp() {
                 }
             }
         }
+        if (currentPage != "HOME") {
+            FeaturePage(
+                page = currentPage,
+                onBack = { currentPage = "HOME"; showAssistant = false; showDjToolkit = false; showSettings = false },
+                content = {
+                    when (currentPage) {
+                        "MUSIC" -> {
+                            Text("Your music library", color = Muted, fontSize = 13.sp)
+                            if (currentIndex in songs.indices) {
+                                Text("Now playing: ${songs[currentIndex].title}", color = Green, fontWeight = FontWeight.Bold)
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Button(onClick = { showNowPlaying = true }, colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Black)) { Text("Open Player") }
+                                    OutlinedButton(onClick = { if (isPlaying) { player.pause(); isPlaying = false } else if (currentIndex in songs.indices) { if (duration > 0) player.start() else playTrack(currentIndex); isPlaying = true } }) { Text(if (isPlaying) "Pause" else "Play") }
+                                }
+                            }
+                            Button(onClick = { picker.launch(arrayOf("audio/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Add songs from phone") }
+                            if (songs.isEmpty()) Text("No songs added yet. Add MP3 files from your phone.", color = Muted)
+                            songs.forEachIndexed { index, song ->
+                                SmallLinkCard(song.title, if (index == currentIndex) "Now playing" else "Tap to play", Icons.Default.MusicNote) { playTrack(index) }
+                            }
+                        }
+                        "DOWNLOADS" -> {
+                            Text("Paste a direct HTTPS MP3, M4A, OGG, MP4 or WEBM file link that you are allowed to download.", color = Muted, fontSize = 12.sp)
+                            OutlinedTextField(value = permittedFileUrl, onValueChange = { permittedFileUrl = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("https://example.com/song.mp3") })
+                            Button(onClick = {
+                                val uri = runCatching { Uri.parse(permittedFileUrl.trim()) }.getOrNull()
+                                downloadMessage = if (uri != null) enqueuePermittedDownload(context, uri, uri.lastPathSegment ?: "media-file") else "Enter a valid media file link."
+                            }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Black)) { Icon(Icons.Default.Download, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Download file") }
+                            if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 12.sp)
+                            OutlinedButton(onClick = { runCatching { context.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)) } }, modifier = Modifier.fillMaxWidth()) { Text("Open Android Download Manager") }
+                            Text("YouTube links open in YouTube; this app does not extract YouTube streams into MP3/MP4.", color = Muted, fontSize = 11.sp)
+                        }
+                        "EQUALIZER" -> {
+                            Text("Play a song first to activate the phone's audio effects.", color = Muted, fontSize = 12.sp)
+                            if (eqPresetNames.isEmpty()) Text("No equalizer presets are currently available.", color = Muted)
+                            eqPresetNames.forEachIndexed { index, preset ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(preset, color = White, modifier = Modifier.weight(1f))
+                                    RadioButton(selected = selectedEqPreset == index, onClick = { runCatching { equalizer?.usePreset(index.toShort()); selectedEqPreset = index } })
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Bass Boost", color = White, modifier = Modifier.weight(1f))
+                                Switch(checked = bassBoostEnabled, onCheckedChange = { bassBoostEnabled = it; runCatching { bassBoost?.enabled = it } })
+                            }
+                        }
+                        "AI" -> {
+                            Text("AI Assistant page", color = Green, fontWeight = FontWeight.Bold)
+                            Text("Assistant chat is opening. If it is not visible, tap the button below.", color = Muted, fontSize = 12.sp)
+                            Button(onClick = { showAssistant = true }, modifier = Modifier.fillMaxWidth()) { Text("Open AI Assistant") }
+                        }
+                        "DJ" -> {
+                            Text("DJ Toolkit page", color = Green, fontWeight = FontWeight.Bold)
+                            Text("DJ tools are available in the dedicated toolkit panel.", color = Muted, fontSize = 12.sp)
+                            Button(onClick = { showDjToolkit = true }, modifier = Modifier.fillMaxWidth()) { Text("Open DJ Toolkit") }
+                        }
+                        "SETTINGS" -> {
+                            Text("App settings and update controls", color = Muted)
+                            Button(onClick = { showSettings = true }, modifier = Modifier.fillMaxWidth()) { Text("Open Settings") }
+                        }
+                        "SHARED" -> {
+                            Text(sharedYoutubeUrl ?: "No shared YouTube link received.", color = White, fontSize = 13.sp)
+                            Button(onClick = { sharedYoutubeUrl?.let { openLink(context, it) } }, enabled = !sharedYoutubeUrl.isNullOrBlank(), modifier = Modifier.fillMaxWidth()) { Text("Open YouTube") }
+                        }
+                    }
+                }
+            )
+        }
         if (showAssistant) {
             AssistantDialog(onDismiss = { showAssistant = false })
         }
@@ -1075,6 +1158,44 @@ fun MrPerfectApp() {
     }
 }
 
+
+
+@Composable
+private fun FeaturePage(
+    page: String,
+    onBack: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val title = when (page) {
+        "MUSIC" -> "MUSIC PLAYER"
+        "DOWNLOADS" -> "DOWNLOAD MANAGER"
+        "EQUALIZER" -> "EQUALIZER"
+        "DJ" -> "DJ TOOLKIT"
+        "AI" -> "AI ASSISTANT"
+        "SETTINGS" -> "SETTINGS"
+        "SHARED" -> "SHARED LINK"
+        else -> "MR. PERFECT YADAV"
+    }
+    Box(
+        Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF07120F), Color(0xFF0A1930), Color(0xFF24101A))))
+            .padding(horizontal = 18.dp, vertical = 14.dp)
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back to Home", tint = White) }
+                Text(title, color = Green, fontWeight = FontWeight.Black, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                TextButton(onClick = onBack) { Text("HOME", color = Red, fontWeight = FontWeight.Bold) }
+            }
+            Divider(color = PanelLight)
+            Spacer(Modifier.height(14.dp))
+            Column(
+                Modifier.fillMaxSize().padding(bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                content = content
+            )
+        }
+    }
+}
 
 @Composable
 private fun PremiumPlaybackButton(
