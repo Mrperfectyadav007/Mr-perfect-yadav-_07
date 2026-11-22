@@ -66,7 +66,10 @@ async function send(){
  if(!q)return;
  const provider=localStorage.getItem('jarvis_provider')||'gemini';
  const notes=getNotes().map(n=>'['+n.title+'] '+n.body).join('\n').slice(0,2500);
- const full='सहेजे नोट्स: '+(notes||'कोई नहीं')+'\nप्रश्न: '+q;
+ const memory=localStorage.getItem('jarvis_memory')||'';
+ const persona=localStorage.getItem('jarvis_persona')||'assistant';
+ const personaText=persona==='mentor'?'धैर्यवान शिक्षक और मार्गदर्शक':persona==='friend'?'दोस्ताना और सहज मित्र':persona==='expert'?'सटीक और संक्षिप्त विशेषज्ञ':persona==='custom'?(localStorage.getItem('jarvis_custom_persona')||'मददगार assistant'):'मददगार personal assistant';
+ const full='यूज़र की Memory: '+(memory||'कोई नहीं')+'\nआपका व्यक्तित्व: '+personaText+'\nसहेजे नोट्स: '+(notes||'कोई नहीं')+'\nप्रश्न: '+q;
  if(provider==='gemini'&&!localStorage.getItem('jarvis_gemini_key')){
   alert('पहले Settings में Gemini API Key सेव करें।');
   document.querySelector('[data-tab="settings"]').click();return;
