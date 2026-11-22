@@ -53,7 +53,7 @@ fun LibraryFeaturePanel(trackTitles: List<String>, currentIndex: Int) {
         mutableStateOf(prefs.getStringSet("playlist_names", emptySet())?.toSet() ?: emptySet())
     }
     var history by remember {
-        mutableStateOf(prefs.getStringSet("recent_history", emptySet())?.toList()?.sortedDescending() ?: emptyList())
+        mutableStateOf<List<String>>(prefs.getStringSet("recent_history", emptySet())?.toList()?.sortedDescending() ?: emptyList())
     }
     var playlistName by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
