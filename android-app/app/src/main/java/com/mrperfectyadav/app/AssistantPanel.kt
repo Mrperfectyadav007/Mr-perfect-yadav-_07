@@ -1,5 +1,7 @@
 package com.mrperfectyadav.app
 
+import android.content.Context
+import android.util.Base64
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -19,15 +22,21 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.spec.GCMParameterSpec
 
 private data class AiChatMessage(val role: String, val text: String)
 
 @Composable
 fun AssistantDialog(onDismiss: () -> Unit) {
-    var apiKey by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    var apiKey by remember { mutableStateOf(loadSavedGeminiKey(context)) }
     var prompt by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
+    var keyStatus by remember { mutableStateOf(if (apiKey.isNotBlank()) "सेव की हुई Key लोड हो गई।" else "") }
     val messages = remember {
         mutableStateListOf(AiChatMessage("model", "नमस्ते! मैं MR. PERFECT YADAV AI Assistant हूँ। पढ़ाई, UPSC/BPSC और सामान्य सवाल पूछिए।"))
     }
@@ -52,15 +61,41 @@ fun AssistantDialog(onDismiss: () -> Unit) {
             ) {
                 OutlinedTextField(
                     value = apiKey,
-                    onValueChange = { apiKey = it },
+                    onValueChange = { apiKey = it; keyStatus = "" },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Gemini API Key") },
                     placeholder = { Text("अपनी API Key यहाँ डालें") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation()
                 )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                saveGeminiKey(context, apiKey.trim())
+                                keyStatus = "API Key इस डिवाइस में सुरक्षित रूप से सेव हो गई।"
+                                error = ""
+                            } catch (e: Exception) {
+                                error = "Key सेव नहीं हुई: ${e.message ?: "कृपया दोबारा कोशिश करें"}"
+                            }
+                        },
+                        enabled = apiKey.isNotBlank(),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Key Save करें") }
+                    TextButton(
+                        onClick = {
+                            clearSavedGeminiKey(context)
+                            apiKey = ""
+                            keyStatus = "सेव की हुई Key हटा दी गई।"
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Key हटाएँ", color = red) }
+                }
+                if (keyStatus.isNotBlank()) {
+                    Text(keyStatus, color = Color(0xFF8DDC9B), style = MaterialTheme.typography.labelSmall)
+                }
                 Text(
-                    "Key इस चैट में न भेजें। यह ऐप में सेव नहीं होती; ऐप बंद होने पर फिर डालनी होगी। Free tier की सीमाएँ लागू हैं।",
+                    "Key आपके इसी डिवाइस में Android Keystore से एन्क्रिप्ट होकर सेव होती है। इसे किसी के साथ साझा न करें।",
                     color = muted,
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -101,7 +136,7 @@ fun AssistantDialog(onDismiss: () -> Unit) {
                         val question = prompt.trim()
                         val key = apiKey.trim()
                         if (key.isBlank()) {
-                            error = "पहले Gemini API Key डालें।"
+                            error = "पहले Gemini API Key डालें और Save करें।"
                         } else if (question.isNotBlank() && !loading) {
                             messages.add(AiChatMessage("user", question))
                             prompt = ""
@@ -110,7 +145,7 @@ fun AssistantDialog(onDismiss: () -> Unit) {
                             scope.launch {
                                 try {
                                     val answer = withContext(Dispatchers.IO) {
-                                        requestGeminiAnswer(key, messages.dropLast(0).takeLast(12))
+                                        requestGeminiAnswer(key, messages.takeLast(12))
                                     }
                                     messages.add(AiChatMessage("model", answer))
                                 } catch (e: Exception) {
@@ -134,6 +169,55 @@ fun AssistantDialog(onDismiss: () -> Unit) {
         titleContentColor = white,
         textContentColor = white
     )
+}
+
+private const val GEMINI_PREFS = "mr_perfect_secure_ai"
+private const val GEMINI_KEY_PREF = "encrypted_gemini_api_key"
+private const val ANDROID_KEYSTORE = "AndroidKeyStore"
+private const val GEMINI_KEY_ALIAS = "MrPerfectYadavGeminiKey"
+
+private fun loadSavedGeminiKey(context: Context): String {
+    return try {
+        val stored = context.getSharedPreferences(GEMINI_PREFS, Context.MODE_PRIVATE)
+            .getString(GEMINI_KEY_PREF, null) ?: return ""
+        val pieces = stored.split(":")
+        if (pieces.size != 2) return ""
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, getOrCreateGeminiSecretKey(), GCMParameterSpec(128, Base64.decode(pieces[0], Base64.NO_WRAP)))
+        String(cipher.doFinal(Base64.decode(pieces[1], Base64.NO_WRAP)), Charsets.UTF_8)
+    } catch (_: Exception) {
+        ""
+    }
+}
+
+private fun saveGeminiKey(context: Context, value: String) {
+    require(value.isNotBlank()) { "API Key खाली है" }
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    cipher.init(Cipher.ENCRYPT_MODE, getOrCreateGeminiSecretKey())
+    val iv = Base64.encodeToString(cipher.iv, Base64.NO_WRAP)
+    val encrypted = Base64.encodeToString(cipher.doFinal(value.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP)
+    context.getSharedPreferences(GEMINI_PREFS, Context.MODE_PRIVATE)
+        .edit().putString(GEMINI_KEY_PREF, "$iv:$encrypted").apply()
+}
+
+private fun clearSavedGeminiKey(context: Context) {
+    context.getSharedPreferences(GEMINI_PREFS, Context.MODE_PRIVATE)
+        .edit().remove(GEMINI_KEY_PREF).apply()
+}
+
+private fun getOrCreateGeminiSecretKey(): java.security.Key {
+    val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+    val existing = keyStore.getKey(GEMINI_KEY_ALIAS, null)
+    if (existing != null) return existing
+    val generator = KeyGenerator.getInstance("AES", ANDROID_KEYSTORE)
+    generator.init(android.security.keystore.KeyGenParameterSpec.Builder(
+        GEMINI_KEY_ALIAS,
+        android.security.keystore.KeyProperties.PURPOSE_ENCRYPT or android.security.keystore.KeyProperties.PURPOSE_DECRYPT
+    ).setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_GCM)
+        .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE)
+        .setRandomizedEncryptionRequired(true)
+        .build())
+    return generator.generateKey()
 }
 
 private suspend fun requestGeminiAnswer(apiKey: String, history: List<AiChatMessage>): String {
