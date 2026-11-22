@@ -65,7 +65,7 @@ internal fun WebPlayerScreen(modifier: Modifier = Modifier) {
                 } else {
                     loadedAddress = candidate
                     message = "Connecting to your Web Player…"
-                    webView?.loadUrl(candidate)
+                    webView?.apply { tag = candidate; loadUrl(candidate) }
                 }
             }) {
                 Icon(Icons.Default.Language, contentDescription = null)
@@ -104,13 +104,14 @@ internal fun WebPlayerScreen(modifier: Modifier = Modifier) {
                         }
                     }
                     webView = this
-                    loadedAddress?.let { loadUrl(it) }
+                    loadedAddress?.let { tag = it; loadUrl(it) }
                 }
             },
             update = { view ->
                 webView = view
-                if (loadedAddress != null && view.url != loadedAddress) {
-                    // Navigation inside the Web App is allowed; avoid reloading the same page.
+                if (loadedAddress != null && view.tag != loadedAddress) {
+                    view.tag = loadedAddress
+                    view.loadUrl(loadedAddress!!)
                 }
             }
         )
