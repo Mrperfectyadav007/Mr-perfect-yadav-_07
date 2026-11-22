@@ -50,6 +50,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -418,10 +421,10 @@ fun MrPerfectApp() {
                                             val safeQuery = q.replace("\\", " ").replace("\"", " ").trim()
                                             val terms = safeQuery.split(Regex("\\s+")).filter { it.length > 1 }.take(6)
                                             val phraseQuery = "(title:\"$safeQuery\" OR creator:\"$safeQuery\")"
-                                            val tokenQuery = terms.joinToString(" OR ") { "title:$it OR creator:$it" }
+                                            val tokenQuery = terms.joinToString(" OR ") { "title:$it OR creator:$it OR description:$it" }
                                             val archiveQuery = "mediatype:audio AND ($phraseQuery OR $tokenQuery)"
                                             val encoded = URLEncoder.encode(archiveQuery, "UTF-8")
-                                            val searchUrl = URL("https://archive.org/advancedsearch.php?q=$encoded&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=licenseurl&rows=40&page=1&sort[]=downloads+desc&output=json")
+                                            val searchUrl = URL("https://archive.org/advancedsearch.php?q=$encoded&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=licenseurl&rows=100&page=1&sort[]=downloads+desc&output=json")
                                             val connection = (searchUrl.openConnection() as HttpURLConnection)
                                             connection.connectTimeout = 15000
                                             connection.readTimeout = 20000
@@ -429,42 +432,56 @@ fun MrPerfectApp() {
                                             try {
                                                 val body = connection.inputStream.bufferedReader().use { it.readText() }
                                                 val docs = JSONObject(body).getJSONObject("response").getJSONArray("docs")
-                                                buildList {
-                                                    for (i in 0 until docs.length()) {
-                                                        val doc = docs.getJSONObject(i)
-                                                        val identifier = doc.optString("identifier")
-                                                        if (identifier.isBlank()) continue
-                                                        val metadataUrl = URL("https://archive.org/metadata/${Uri.encode(identifier)}")
-                                                        val metaConnection = (metadataUrl.openConnection() as HttpURLConnection)
-                                                        metaConnection.connectTimeout = 10000
-                                                        metaConnection.readTimeout = 12000
-                                                        try {
-                                                            val metaText = metaConnection.inputStream.bufferedReader().use { it.readText() }
-                                                            val metadataRoot = JSONObject(metaText)
-                                                            val metadata = metadataRoot.optJSONObject("metadata")
-                                                            val license = (doc.optString("licenseurl").takeIf { it.isNotBlank() }
-                                                                ?: metadata?.optString("licenseurl").orEmpty()).lowercase()
-                                                            if (!(license.contains("creativecommons.org") || license.contains("publicdomain"))) continue
-                                                            val files = metadataRoot.optJSONArray("files") ?: continue
-                                                            var audioFile: String? = null
-                                                            for (j in 0 until files.length()) {
-                                                                val file = files.optJSONObject(j) ?: continue
-                                                                val name = file.optString("name")
-                                                                val format = file.optString("format")
-                                                                if (name.lowercase().endsWith(".mp3") &&
-                                                                    (format.contains("mp3", true) || format.contains("audio", true))) {
-                                                                    audioFile = name
-                                                                    break
+                                                coroutineScope {
+                                                    (0 until docs.length()).map { i ->
+                                                        async {
+                                                            runCatching {
+                                                                val doc = docs.getJSONObject(i)
+                                                                val identifier = doc.optString("identifier")
+                                                                if (identifier.isBlank()) return@runCatching null
+                                                                val metadataUrl = URL("https://archive.org/metadata/${Uri.encode(identifier)}")
+                                                                val metaConnection = (metadataUrl.openConnection() as HttpURLConnection)
+                                                                metaConnection.connectTimeout = 10000
+                                                                metaConnection.readTimeout = 12000
+                                                                try {
+                                                                    val metaText = metaConnection.inputStream.bufferedReader().use { it.readText() }
+                                                                    val metadataRoot = JSONObject(metaText)
+                                                                    val metadata = metadataRoot.optJSONObject("metadata")
+                                                                    val license = (doc.optString("licenseurl").takeIf { it.isNotBlank() }
+                                                                        ?: metadata?.optString("licenseurl").orEmpty()).lowercase()
+                                                                    val allowedLicense = license.contains("creativecommons.org/licenses") ||
+                                                                        license.contains("creativecommons.org/publicdomain") ||
+                                                                        license.contains("publicdomain")
+                                                                    if (!allowedLicense) return@runCatching null
+                                                                    val files = metadataRoot.optJSONArray("files") ?: return@runCatching null
+                                                                    var audioFile: String? = null
+                                                                    for (j in 0 until files.length()) {
+                                                                        val file = files.optJSONObject(j) ?: continue
+                                                                        val name = file.optString("name")
+                                                                        val format = file.optString("format")
+                                                                        val playable = name.lowercase().endsWith(".mp3") ||
+                                                                            name.lowercase().endsWith(".m4a") ||
+                                                                            name.lowercase().endsWith(".ogg")
+                                                                        if (playable && (format.contains("mp3", true) ||
+                                                                                format.contains("mpeg", true) ||
+                                                                                format.contains("aac", true) ||
+                                                                                format.contains("ogg", true) ||
+                                                                                format.contains("audio", true))) {
+                                                                            audioFile = name
+                                                                            break
+                                                                        }
+                                                                    }
+                                                                    val selectedFile = audioFile ?: return@runCatching null
+                                                                    val title = doc.optString("title", "Untitled audio")
+                                                                    val creator = doc.optString("creator", "Unknown artist")
+                                                                    val streamUrl = "https://archive.org/download/${Uri.encode(identifier)}/${Uri.encode(selectedFile)}"
+                                                                    LocalSong(Uri.parse(streamUrl), "$title — $creator")
+                                                                } finally {
+                                                                    metaConnection.disconnect()
                                                                 }
-                                                            }
-                                                            if (audioFile != null) {
-                                                                val title = doc.optString("title", "Untitled audio")
-                                                                val creator = doc.optString("creator", "Unknown artist")
-                                                                val streamUrl = "https://archive.org/download/${Uri.encode(identifier)}/${Uri.encode(audioFile!!)}"
-                                                                add(LocalSong(Uri.parse(streamUrl), "$title — $creator"))
-                                                            }
-                                                        } finally { metaConnection.disconnect() }
-                                                    }
+                                                            }.getOrNull()
+                                                        }
+                                                    }.awaitAll().filterNotNull()
                                                 }
                                             } finally { connection.disconnect() }
                                         }.getOrDefault(emptyList())
