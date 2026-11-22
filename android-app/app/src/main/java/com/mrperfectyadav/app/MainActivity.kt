@@ -1040,7 +1040,7 @@ fun MrPerfectApp() {
                             WebPlayerScreen(modifier = Modifier.weight(1f))
                         }
                         "YOUTUBE" -> {
-                            YouTubePage()
+                            YouTubePage(onOpenEqualizer = { currentPage = "EQUALIZER" })
                         }
                         "MUSIC" -> {
                             Text("Your music library", color = Muted, fontSize = 13.sp)
@@ -1535,7 +1535,7 @@ private fun openLink(context: android.content.Context, url: String) {
 
 
 @Composable
-private fun YouTubePage() {
+private fun YouTubePage(onOpenEqualizer: () -> Unit) {
     val context = LocalContext.current
     var pageError by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1552,6 +1552,20 @@ private fun YouTubePage() {
                 Text("YouTube Music")
             }
         }
+        Button(
+            onClick = onOpenEqualizer,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = White)
+        ) {
+            Icon(Icons.Default.Equalizer, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("OPEN APP EQUALIZER")
+        }
+        Text(
+            "Equalizer shortcut opens this app's sound controls. Whether it affects YouTube playback depends on Android and your device.",
+            color = Muted,
+            fontSize = 10.sp
+        )
         if (pageError) {
             Text("YouTube page could not load. Check your internet connection or use the buttons above.", color = Red, fontSize = 12.sp)
         }
