@@ -1335,7 +1335,6 @@ private fun FeaturePage(
                 content = content
             )
         }
-        }
     }
 }
 
