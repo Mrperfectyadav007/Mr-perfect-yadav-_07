@@ -408,7 +408,7 @@ fun MrPerfectApp() {
                                     val found = withContext(Dispatchers.IO) {
                                         runCatching {
                                             val safeQuery = q.replace("\\", " ").replace("\"", " ").trim()
-                                            val archiveQuery = "mediatype:audio AND licenseurl:http* AND title:\"$safeQuery\""
+                                            val archiveQuery = "mediatype:audio AND (title:\"$safeQuery\" OR creator:\"$safeQuery\")"
                                             val encoded = URLEncoder.encode(archiveQuery, "UTF-8")
                                             val searchUrl = URL("https://archive.org/advancedsearch.php?q=$encoded&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=licenseurl&rows=40&page=1&sort[]=downloads+desc&output=json")
                                             val connection = (searchUrl.openConnection() as HttpURLConnection)
@@ -422,15 +422,19 @@ fun MrPerfectApp() {
                                                     for (i in 0 until docs.length()) {
                                                         val doc = docs.getJSONObject(i)
                                                         val identifier = doc.optString("identifier")
-                                                        val license = doc.optString("licenseurl").lowercase()
-                                                        if (identifier.isBlank() || !(license.contains("creativecommons.org") || license.contains("publicdomain"))) continue
+                                                        if (identifier.isBlank()) continue
                                                         val metadataUrl = URL("https://archive.org/metadata/${Uri.encode(identifier)}")
                                                         val metaConnection = (metadataUrl.openConnection() as HttpURLConnection)
                                                         metaConnection.connectTimeout = 10000
                                                         metaConnection.readTimeout = 12000
                                                         try {
                                                             val metaText = metaConnection.inputStream.bufferedReader().use { it.readText() }
-                                                            val files = JSONObject(metaText).optJSONArray("files") ?: continue
+                                                            val metadataRoot = JSONObject(metaText)
+                                                            val metadata = metadataRoot.optJSONObject("metadata")
+                                                            val license = (doc.optString("licenseurl").takeIf { it.isNotBlank() }
+                                                                ?: metadata?.optString("licenseurl").orEmpty()).lowercase()
+                                                            if (!(license.contains("creativecommons.org") || license.contains("publicdomain"))) continue
+                                                            val files = metadataRoot.optJSONArray("files") ?: continue
                                                             var audioFile: String? = null
                                                             for (j in 0 until files.length()) {
                                                                 val file = files.optJSONObject(j) ?: continue
