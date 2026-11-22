@@ -370,6 +370,34 @@ fun MrPerfectApp() {
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = Panel)
                     ) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = Red)
+                                Spacer(Modifier.width(8.dp))
+                                Text("My YouTube Videos", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                            }
+                            Text(
+                                "Manage videos uploaded to your own channel. Open YouTube Studio, choose Content, open the video menu and use Download when YouTube makes it available.",
+                                color = Muted, fontSize = 12.sp
+                            )
+                            Button(
+                                onClick = { openLink(context, "https://studio.youtube.com/") },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Blue, contentColor = White)
+                            ) {
+                                Icon(Icons.Default.OpenInNew, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Open YouTube Studio")
+                            }
+                        }
+                    }
+                }
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Panel)
+                    ) {
                         Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Verified, contentDescription = null, tint = Green)
