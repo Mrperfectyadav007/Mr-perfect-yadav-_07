@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,6 +39,8 @@ fun AssistantDialog(onDismiss: () -> Unit) {
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     var keyStatus by remember { mutableStateOf(if (apiKey.isNotBlank()) "सेव की हुई Key लोड हो गई।" else "") }
+    var showKeySettings by remember { mutableStateOf(apiKey.isBlank()) }
+    var showKeyText by remember { mutableStateOf(false) }
     val messages = remember {
         mutableStateListOf(AiChatMessage("model", "नमस्ते! मैं MR. PERFECT YADAV AI Assistant हूँ। पढ़ाई, UPSC/BPSC और सामान्य सवाल पूछिए।"))
     }
@@ -59,46 +63,61 @@ fun AssistantDialog(onDismiss: () -> Unit) {
                 Modifier.fillMaxWidth().heightIn(min = 280.dp, max = 560.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
-                    value = apiKey,
-                    onValueChange = { apiKey = it; keyStatus = "" },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Gemini API Key") },
-                    placeholder = { Text("अपनी API Key यहाँ डालें") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation()
-                )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
+                    OutlinedButton(onClick = { showKeySettings = !showKeySettings }, modifier = Modifier.weight(1f)) {
+                        Text(if (showKeySettings) "API Settings बंद करें" else "Gemini API Settings")
+                    }
+                    OutlinedButton(onClick = {
+                        messages.clear()
+                        messages.add(AiChatMessage("model", "नई बातचीत शुरू हुई। मैं MR. PERFECT YADAV AI हूँ।"))
+                        error = ""
+                    }) { Text("New Chat") }
+                }
+                if (showKeySettings) {
+                    OutlinedTextField(
+                        value = apiKey,
+                        onValueChange = { apiKey = it; keyStatus = "" },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Gemini API Key") },
+                        placeholder = { Text("नई Gemini API Key यहाँ डालें") },
+                        singleLine = true,
+                        visualTransformation = if (showKeyText) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = { TextButton(onClick = { showKeyText = !showKeyText }) { Text(if (showKeyText) "Hide" else "Show") } }
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = {
                             try {
                                 saveGeminiKey(context, apiKey.trim())
                                 keyStatus = "API Key इस डिवाइस में सुरक्षित रूप से सेव हो गई।"
                                 error = ""
+                                showKeySettings = false
                             } catch (e: Exception) {
                                 error = "Key सेव नहीं हुई: ${e.message ?: "कृपया दोबारा कोशिश करें"}"
                             }
-                        },
-                        enabled = apiKey.isNotBlank(),
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Key Save करें") }
-                    TextButton(
-                        onClick = {
+                        }, enabled = apiKey.isNotBlank(), modifier = Modifier.weight(1f)) { Text("Key Save करें") }
+                        TextButton(onClick = {
                             clearSavedGeminiKey(context)
                             apiKey = ""
                             keyStatus = "सेव की हुई Key हटा दी गई।"
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Key हटाएँ", color = red) }
+                        }, modifier = Modifier.weight(1f)) { Text("Key हटाएँ", color = red) }
+                    }
+                    Text("Key इस डिवाइस के Android Keystore से एन्क्रिप्ट होकर सेव होती है। इसे चैट या GitHub पर साझा न करें।", color = muted, style = MaterialTheme.typography.labelSmall)
                 }
                 if (keyStatus.isNotBlank()) {
                     Text(keyStatus, color = Color(0xFF8DDC9B), style = MaterialTheme.typography.labelSmall)
                 }
-                Text(
-                    "Key आपके इसी डिवाइस में Android Keystore से एन्क्रिप्ट होकर सेव होती है। इसे किसी के साथ साझा न करें।",
-                    color = muted,
-                    style = MaterialTheme.typography.labelSmall
-                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    items(listOf("UPSC/BPSC समझाओ", "आज का क्विज", "पढ़ाई का प्लान", "इस टॉपिक के नोट्स")) { suggestion ->
+                        AssistSuggestion(suggestion) {
+                            prompt = when (suggestion) {
+                                "UPSC/BPSC समझाओ" -> "इस विषय को UPSC/BPSC स्तर पर सरल हिंदी में समझाइए।"
+                                "आज का क्विज" -> "मेरे लिए 5 UPSC/BPSC स्तर के हिंदी MCQ बनाइए।"
+                                "पढ़ाई का प्लान" -> "मेरे लिए एक प्रभावी दैनिक पढ़ाई का प्लान बनाइए।"
+                                else -> "इस विषय के परीक्षा-उपयोगी हिंदी नोट्स बनाइए।"
+                            }
+                        }
+                    }
+                }
                 HorizontalDivider(color = dark)
                 LazyColumn(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -267,4 +286,11 @@ private suspend fun requestGeminiAnswer(apiKey: String, history: List<AiChatMess
     } finally {
         connection.disconnect()
     }
+}
+
+
+@Composable
+private fun AssistSuggestion(label: String, onClick: () -> Unit) {
+    AssistChip(onClick = onClick, label = { Text(label, fontWeight = FontWeight.Bold) },
+        colors = AssistChipDefaults.assistChipColors(labelColor = Color(0xFFFF4057)))
 }
