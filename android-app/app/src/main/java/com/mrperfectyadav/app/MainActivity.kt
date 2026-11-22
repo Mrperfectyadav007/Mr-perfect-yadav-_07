@@ -72,10 +72,10 @@ import org.json.JSONObject
 private val Black = Color(0xFF070B10)
 private val Panel = Color(0xFF111923)
 private val PanelLight = Color(0xFF1B2A38)
-private val Green = Color(0xFF1DB954)
-private val Blue = Color(0xFF1ED760)
-private val Red = Color(0xFF1DB954)
-private val Purple = Color(0xFF168B45)
+private val Green = Color(0xFFFF263E)
+private val Blue = Color(0xFFFF6675)
+private val Red = Color(0xFFFF1738)
+private val Purple = Color(0xFF8E1025)
 private val BrandGradient = listOf(Green, Blue, Purple, Red)
 private val White = Color(0xFFF7FAFF)
 private val Muted = Color(0xFFB8C5D3)
@@ -348,7 +348,7 @@ fun MrPerfectApp() {
                         Column(Modifier.weight(1f)) {
                             Text("MR. PERFECT YADAV", color = Green, fontSize = 12.sp,
                                 fontWeight = FontWeight.Black, letterSpacing = 2.5.sp)
-                            Text("Your music. Your vibe.", color = White, fontSize = 25.sp,
+                            Text("Music Player", color = White, fontSize = 25.sp,
                                 fontWeight = FontWeight.ExtraBold)
                         }
                         Image(
@@ -368,19 +368,23 @@ fun MrPerfectApp() {
                     }
                 }
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text("EXPLORE YOUR MUSIC", color = White, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
-                        SmallLinkCard("Music Player", "Your songs and playback controls", Icons.Default.MusicNote) { currentPage = "MUSIC" }
-                        SmallLinkCard("WEB MUSIC PLAYER", "Connect your hosted Telegram Web Player", Icons.Default.Language) { currentPage = "WEB_PLAYER" }
-                        SmallLinkCard("YouTube", "Open YouTube separately inside this app", Icons.Default.PlayCircle) { currentPage = "YOUTUBE" }
-                        SmallLinkCard("Downloads", "Direct file downloads and status", Icons.Default.Download) { currentPage = "DOWNLOADS" }
-                        SmallLinkCard("Equalizer", "Sound presets and Bass Boost", Icons.Default.Equalizer) { currentPage = "EQUALIZER" }
-                        SmallLinkCard("DJ Toolkit", "DJ controls and tools", Icons.Default.GraphicEq) { currentPage = "DJ"; showDjToolkit = true }
-                        SmallLinkCard("Studio Master", "Recording, mixing and vocal effects", Icons.Default.Mic) { currentPage = "STUDIO" }
-                        SmallLinkCard("AI Assistant", "Open the assistant chat", Icons.Default.AutoAwesome) { currentPage = "AI"; showAssistant = true }
-                        SmallLinkCard("Settings", "Playback and app updates", Icons.Default.Settings) { currentPage = "SETTINGS"; showSettings = true }
-                        if (!sharedYoutubeUrl.isNullOrBlank()) {
-                            SmallLinkCard("Shared YouTube Link", "View the link shared to this app", Icons.Default.Share) { currentPage = "SHARED" }
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("YOUR MUSIC", color = White, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            HomeActionCard("Online Music", Icons.Default.Language, Modifier.weight(1f)) { currentPage = "WEB_PLAYER" }
+                            HomeActionCard("Local Music", Icons.Default.MusicNote, Modifier.weight(1f)) { currentPage = "MUSIC" }
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            HomeActionCard("Favorites", Icons.Default.Favorite, Modifier.weight(1f)) { currentPage = "MUSIC" }
+                            HomeActionCard("Playlist", Icons.Default.QueueMusic, Modifier.weight(1f)) { currentPage = "MUSIC" }
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { currentPage = "YOUTUBE" }, modifier = Modifier.weight(1f)) {
+                                Icon(Icons.Default.PlayCircle, contentDescription = null); Spacer(Modifier.width(5.dp)); Text("YouTube")
+                            }
+                            OutlinedButton(onClick = { currentPage = "EQUALIZER" }, modifier = Modifier.weight(1f)) {
+                                Icon(Icons.Default.Equalizer, contentDescription = null); Spacer(Modifier.width(5.dp)); Text("Equalizer")
+                            }
                         }
                     }
                 }
@@ -392,11 +396,11 @@ fun MrPerfectApp() {
                     ) {
                         Box(
                             Modifier.fillMaxSize().background(
-                                Brush.linearGradient(listOf(Color(0xFF123D2D), Color(0xFF12365E), Color(0xFF39205A), Color(0xFF4A1727), Color(0xFF101923)))
+                                Brush.linearGradient(listOf(Color(0xFF500817), Color(0xFF160609), Color(0xFF090909)))
                             ).padding(20.dp)
                         ) {
                             Column(Modifier.align(Alignment.CenterStart)) {
-                                Text("ALL YOUR FAVORITES IN ONE PLACE", color = White.copy(alpha = .8f),
+                                Text("DREAM BIG • WORK HARD • STAY PERFECT", color = White.copy(alpha = .8f),
                                     fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                                 Spacer(Modifier.height(7.dp))
                                 Text("Find your sound.", color = White, fontSize = 23.sp, fontWeight = FontWeight.Black)
@@ -1350,6 +1354,32 @@ fun MrPerfectApp() {
 }
 }
 
+
+@Composable
+private fun HomeActionCard(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.height(108.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xCC100609)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF304B))
+    ) {
+        Column(
+            Modifier.fillMaxSize().padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Color(0xFFFF435B), modifier = Modifier.size(34.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(label, color = White, fontSize = 13.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+        }
+    }
+}
 
 @Composable
 private fun FeaturePage(
