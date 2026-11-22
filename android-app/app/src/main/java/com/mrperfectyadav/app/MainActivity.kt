@@ -128,8 +128,11 @@ fun MrPerfectApp() {
     var bassBoost by remember { mutableStateOf<BassBoost?>(null) }
     var bassBoostEnabled by remember { mutableStateOf(false) }
     var autoPlayNext by remember { mutableStateOf(true) }
+    var shuffleEnabled by remember { mutableStateOf(false) }
+    var repeatCurrent by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showSettings by remember { mutableStateOf(false) }
+    var showAssistant by remember { mutableStateOf(false) }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
     val player = remember { MediaPlayer() }
@@ -187,8 +190,15 @@ fun MrPerfectApp() {
                 isPlaying = true
             }
             player.setOnCompletionListener {
-                if (autoPlayNext && currentIndex + 1 < songs.size) playTrack(currentIndex + 1)
-                else { isPlaying = false; position = 0 }
+                when {
+                    repeatCurrent && currentIndex in songs.indices -> playTrack(currentIndex)
+                    shuffleEnabled && songs.isNotEmpty() -> {
+                        val candidates = songs.indices.filter { it != currentIndex }.ifEmpty { songs.indices.toList() }
+                        playTrack(candidates.random())
+                    }
+                    autoPlayNext && currentIndex + 1 < songs.size -> playTrack(currentIndex + 1)
+                    else -> { isPlaying = false; position = 0 }
+                }
             }
             player.setOnErrorListener { _, _, _ ->
                 isPreparing = false
@@ -248,8 +258,9 @@ fun MrPerfectApp() {
         primary = Red, background = Black, surface = Panel,
         onPrimary = White, onBackground = White, onSurface = White
     )) {
-        BackHandler(enabled = showSettings || onlineSongs.isNotEmpty() || searchQuery.isNotBlank()) {
+        BackHandler(enabled = showAssistant || showSettings || onlineSongs.isNotEmpty() || searchQuery.isNotBlank()) {
             when {
+                showAssistant -> showAssistant = false
                 showSettings -> showSettings = false
                 onlineSongs.isNotEmpty() -> {
                     onlineSongs = emptyList()
@@ -295,6 +306,9 @@ fun MrPerfectApp() {
                             contentDescription = "MR. PERFECT YADAV profile photo",
                             modifier = Modifier.size(54.dp).clip(CircleShape)
                         )
+                        IconButton(onClick = { showAssistant = true }) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = "AI Assistant", tint = Red)
+                        }
                         IconButton(onClick = { showSettings = true }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Red)
                         }
@@ -570,6 +584,7 @@ fun MrPerfectApp() {
                         }
                     }
                 }
+                item { LibraryFeaturePanel(trackTitles = songs.map { it.title }, currentIndex = currentIndex) }
                 item { Text("Connect", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                 item { SmallLinkCard("Telegram Bot", "t.me/Mr_perfect_yadav_07robot", Icons.Default.Send) {
                     openLink(context, "https://t.me/Mr_perfect_yadav_07robot")
@@ -633,6 +648,9 @@ fun MrPerfectApp() {
             }
             }
         }
+        if (showAssistant) {
+            AssistantDialog(onDismiss = { showAssistant = false })
+        }
         if (showSettings) {
             AlertDialog(
                 onDismissRequest = { showSettings = false },
@@ -643,6 +661,14 @@ fun MrPerfectApp() {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Auto-play next song", modifier = Modifier.weight(1f))
                             Switch(checked = autoPlayNext, onCheckedChange = { autoPlayNext = it })
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Shuffle playback", modifier = Modifier.weight(1f))
+                            Switch(checked = shuffleEnabled, onCheckedChange = { shuffleEnabled = it })
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Repeat current track", modifier = Modifier.weight(1f))
+                            Switch(checked = repeatCurrent, onCheckedChange = { repeatCurrent = it })
                         }
                         Text("Audio playback speed: ${String.format("%.2f", playbackSpeed)}x")
                         Slider(value = playbackSpeed, onValueChange = { speed ->
