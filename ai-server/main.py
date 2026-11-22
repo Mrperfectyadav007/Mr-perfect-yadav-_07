@@ -7,6 +7,7 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from agent import create_plan
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
@@ -122,3 +123,20 @@ async def chat(body: ChatRequest):
         raise HTTPException(status_code=502, detail="AI provider is temporarily unavailable")
     except Exception:
         raise HTTPException(status_code=502, detail="AI request failed")
+
+
+class AgentPlanRequest(BaseModel):
+    command: str = Field(min_length=1, max_length=12000)
+
+@app.post("/agent/plan")
+async def agent_plan(body: AgentPlanRequest):
+    """Create a safe action plan. This endpoint plans only; it does not execute actions."""
+    try:
+        plan = await create_plan(body.command)
+        return {"assistant": "MR. PERFECT YADAV AI", "mode": "plan_only", **plan}
+    except RuntimeError as exc:
+        if "not configured" in str(exc):
+            raise HTTPException(status_code=503, detail="AI service is not configured")
+        raise HTTPException(status_code=502, detail="AI provider is temporarily unavailable")
+    except Exception:
+        raise HTTPException(status_code=502, detail="Could not create a safe agent plan")
