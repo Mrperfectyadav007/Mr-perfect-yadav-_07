@@ -133,6 +133,11 @@ fun MrPerfectApp() {
     var autoPlayNext by remember { mutableStateOf(true) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showSettings by remember { mutableStateOf(false) }
+    var showAiAssistant by remember { mutableStateOf(false) }
+    var geminiApiKey by remember { mutableStateOf(context.getSharedPreferences("mr_perfect_ai", Context.MODE_PRIVATE).getString("gemini_api_key", "") ?: "") }
+    var aiPrompt by remember { mutableStateOf("") }
+    var aiBusy by remember { mutableStateOf(false) }
+    var aiMessages by remember { mutableStateOf(listOf<Pair<String, String>>()) }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
     val player = remember { MediaPlayer() }
@@ -300,6 +305,23 @@ fun MrPerfectApp() {
                         )
                         IconButton(onClick = { showSettings = true }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Red)
+                        }
+                    }
+                }
+                item {
+                    Card(
+                        onClick = { showAiAssistant = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Panel)
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(17.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Red, modifier = Modifier.size(34.dp))
+                            Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                                Text("JARVIS AI ASSISTANT", color = White, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                                Text("Gemini AI • Hindi chat • Ask anything", color = Muted, fontSize = 11.sp)
+                            }
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Red)
                         }
                     }
                 }
@@ -638,6 +660,87 @@ fun MrPerfectApp() {
             }
             }
         }
+        if (showAiAssistant) {
+            AlertDialog(
+                onDismissRequest = { if (!aiBusy) showAiAssistant = false },
+                title = { Text("JARVIS AI • MR. PERFECT YADAV", color = White, fontWeight = FontWeight.Black) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.heightIn(max = 520.dp)) {
+                        Text("Gemini API Key", color = Red, fontWeight = FontWeight.Bold)
+                        OutlinedTextField(
+                            value = geminiApiKey,
+                            onValueChange = { geminiApiKey = it.trim() },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("अपनी Gemini API Key यहाँ डालें") },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = White, unfocusedTextColor = White,
+                                focusedBorderColor = Red, unfocusedBorderColor = Muted,
+                                focusedPlaceholderColor = Muted, unfocusedPlaceholderColor = Muted
+                            )
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = {
+                                context.getSharedPreferences("mr_perfect_ai", Context.MODE_PRIVATE)
+                                    .edit().putString("gemini_api_key", geminiApiKey).apply()
+                                Toast.makeText(context, "API Key इस फोन में सेव हो गई", Toast.LENGTH_SHORT).show()
+                            }) { Text("Save Key", color = Red) }
+                            TextButton(onClick = { aiMessages = emptyList() }) { Text("Clear chat", color = Muted) }
+                        }
+                        Divider(color = PanelLight)
+                        Text("Chat with JARVIS", color = Red, fontWeight = FontWeight.Bold)
+                        Column(
+                            Modifier.weight(1f, fill = false).fillMaxWidth()
+                                .background(Black, RoundedCornerShape(12.dp)).padding(10.dp)
+                                .heightIn(min = 90.dp, max = 210.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (aiMessages.isEmpty()) Text("राधे राधे! मैं JARVIS हूँ। अपना सवाल लिखें।", color = Muted, fontSize = 12.sp)
+                            aiMessages.takeLast(8).forEach { (who, message) ->
+                                Text(if (who == "user") "आप: $message" else "JARVIS: $message",
+                                    color = if (who == "user") White else Color(0xFFFF7777), fontSize = 12.sp)
+                            }
+                        }
+                        OutlinedTextField(
+                            value = aiPrompt, onValueChange = { aiPrompt = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("हिंदी में अपना सवाल लिखें…") },
+                            minLines = 1, maxLines = 3,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = White, unfocusedTextColor = White,
+                                focusedBorderColor = Red, unfocusedBorderColor = Muted,
+                                focusedPlaceholderColor = Muted, unfocusedPlaceholderColor = Muted
+                            )
+                        )
+                        Button(
+                            enabled = !aiBusy && aiPrompt.isNotBlank() && geminiApiKey.isNotBlank(),
+                            onClick = {
+                                val question = aiPrompt.trim()
+                                aiPrompt = ""
+                                aiMessages = aiMessages + ("user" to question)
+                                aiBusy = true
+                                scope.launch {
+                                    val answer = withContext(Dispatchers.IO) {
+                                        runCatching { askGeminiDirect(geminiApiKey, question) }
+                                            .getOrElse { "जवाब नहीं मिल पाया: ${it.message ?: "नेटवर्क या API Key जाँचें"}" }
+                                    }
+                                    aiMessages = aiMessages + ("assistant" to answer)
+                                    aiBusy = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = White)
+                        ) { Text(if (aiBusy) "JARVIS सोच रहा है…" else "Send to JARVIS") }
+                        Text("सुरक्षा: API Key इस डिवाइस पर सेव होगी, लेकिन APK/फोन से तकनीकी रूप से निकाली जा सकती है। इसे सार्वजनिक रूप से साझा न करें।",
+                            color = Muted, fontSize = 10.sp)
+                    }
+                },
+                confirmButton = { TextButton(onClick = { if (!aiBusy) showAiAssistant = false }) { Text("Close", color = Red) } },
+                containerColor = Panel,
+                titleContentColor = White,
+                textContentColor = White
+            )
+        }
         if (showSettings) {
             AlertDialog(
                 onDismissRequest = { showSettings = false },
@@ -785,4 +888,43 @@ class MusicActionReceiver : BroadcastReceiver() {
 
 private fun openLink(context: android.content.Context, url: String) {
     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+}
+
+private suspend fun askGeminiDirect(apiKey: String, prompt: String): String {
+    val endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+        URLEncoder.encode(apiKey, "UTF-8")
+    val requestBody = JSONObject().apply {
+        put("systemInstruction", JSONObject().put("parts", org.json.JSONArray().put(
+            JSONObject().put("text", "You are JARVIS, the helpful Hindi-first personal AI assistant for MR. PERFECT YADAV. Reply clearly and safely. Do not claim to perform actions on the device unless an available app feature actually performed them.")
+        )))
+        put("contents", org.json.JSONArray().put(
+            JSONObject().put("role", "user").put("parts", org.json.JSONArray().put(JSONObject().put("text", prompt)))
+        ))
+        put("generationConfig", JSONObject().put("temperature", 0.7).put("maxOutputTokens", 1200))
+    }
+    val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+        requestMethod = "POST"
+        connectTimeout = 20000
+        readTimeout = 30000
+        doOutput = true
+        setRequestProperty("Content-Type", "application/json")
+    }
+    try {
+        connection.outputStream.use { it.write(requestBody.toString().toByteArray(Charsets.UTF_8)) }
+        val status = connection.responseCode
+        val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+        val response = stream.bufferedReader().use { it.readText() }
+        val json = JSONObject(response)
+        if (status !in 200..299) {
+            val message = json.optJSONObject("error")?.optString("message").orEmpty()
+            throw IllegalStateException(if (message.isNotBlank()) message else "Gemini API error ($status)")
+        }
+        val candidates = json.optJSONArray("candidates")
+        val parts = candidates?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
+        val answer = parts?.optJSONObject(0)?.optString("text").orEmpty()
+        if (answer.isBlank()) throw IllegalStateException("Gemini से खाली जवाब मिला")
+        return answer
+    } finally {
+        connection.disconnect()
+    }
 }
