@@ -1,13 +1,22 @@
 # MR. PERFECT YADAV Android App
 
-This folder contains the native Android app project. It is separate from the existing GitHub Pages website.
+Existing native Android project retaining the red/black branded home screen and original app assets.
 
-## Open and build
-1. Open Android Studio.
-2. Choose **Open** and select this `android-app` folder after cloning/downloading the repository.
-3. Allow Gradle sync to finish.
-4. Choose **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
+## Changes in this update branch
+- Removed offline song-download UI, imports and DownloadManager helper, per requirement.
+- Clarified that commercial full tracks require a licensed provider.
+- Existing local MP3 playback, notification actions, equalizer and bass-boost code remain.
 
-The app currently includes a branded home screen and links to the Telegram bot, Telegram channel, Instagram profile, and a music service. AI chat, real login, and in-app music playback require secure backend/API integration and are not implemented by this starter version.
+## Feature status — remaining work is not yet shipped
+- Local MP3 playback: present; background lifecycle/service refactor and device verification remain.
+- Online legal music search: present for Archive.org results; check each track's licence terms.
+- Commercial full-track catalogue: requires provider agreement and credentials.
+- Equalizer/Bass Boost: present; support varies by Android device.
+- Playlists, favorites and recently played persistence: not fully implemented.
+- Gemini AI assistant: requires secure HTTPS backend; keep API key server-side.
+- Premium membership/billing: requires Google Play Billing setup and products.
+- Privacy, app update and about flows: need completion and testing.
+- Offline song download: intentionally excluded.
 
-Never put Telegram bot tokens, passwords, or private API keys in the Android app source.
+## Build
+Open `android-app` in Android Studio, sync Gradle, then build an APK. Build and device playback have not yet been verified for this branch.

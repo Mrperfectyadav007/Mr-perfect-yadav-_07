@@ -4,19 +4,21 @@ import android.content.Intent
 import androidx.core.content.ContextCompat
 import android.content.BroadcastReceiver
 import android.content.Context
-import android.app.DownloadManager
-import android.os.Environment
-import android.widget.Toast
 import android.media.MediaPlayer
 import android.media.audiofx.Equalizer
 import android.media.audiofx.BassBoost
 import android.net.Uri
 import android.os.Bundle
 import android.os.Build
+import android.os.Environment
+import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.provider.OpenableColumns
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.activity.ComponentActivity
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
@@ -48,11 +50,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -61,20 +68,27 @@ import java.net.URL
 import java.net.URLEncoder
 import org.json.JSONObject
 
-private val Black = Color(0xFF080808)
-private val Panel = Color(0xFF181818)
-private val PanelLight = Color(0xFF242424)
-private val Red = Color(0xFFFF3030)
-private val White = Color(0xFFF7F7F7)
-private val Muted = Color(0xFFB8B8B8)
+private val Black = Color(0xFF070B10)
+private val Panel = Color(0xFF111923)
+private val PanelLight = Color(0xFF1B2A38)
+private val Green = Color(0xFF20D67B)
+private val Blue = Color(0xFF328BFF)
+private val Red = Color(0xFFFF4057)
+private val Purple = Color(0xFF9B5CFF)
+private val BrandGradient = listOf(Green, Blue, Purple, Red)
+private val White = Color(0xFFF7FAFF)
+private val Muted = Color(0xFFB8C5D3)
 
 private data class LocalSong(val uri: Uri, val title: String)
 
 class MainActivity : ComponentActivity() {
     private var mediaSession: MediaSessionCompat? = null
+    var sharedYoutubeUrl by mutableStateOf<String?>(null)
+        private set
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        receiveSharedYoutubeLink(intent)
         createMusicNotificationChannel()
         mediaSession = MediaSessionCompat(this, "MrPerfectYadavMusic").apply {
             setCallback(object : MediaSessionCompat.Callback() {
@@ -92,6 +106,20 @@ class MainActivity : ComponentActivity() {
         setContent { MrPerfectApp() }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        receiveSharedYoutubeLink(intent)
+    }
+
+    private fun receiveSharedYoutubeLink(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND) return
+        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
+        val match = Regex("https?://(?:[a-z0-9-]+\\.)*(?:youtube\\.com|youtu\\.be)/[^\\s]+", RegexOption.IGNORE_CASE)
+            .find(sharedText)?.value?.trimEnd('.', ',', ')', ']', '}', '>')
+        if (!match.isNullOrBlank()) sharedYoutubeUrl = match
+    }
+
     override fun onDestroy() {
         stopService(Intent(this, MusicPlaybackService::class.java))
         NotificationController.cancel(this)
@@ -106,8 +134,12 @@ class MainActivity : ComponentActivity() {
             val channel = NotificationChannel(
                 NotificationController.CHANNEL_ID,
                 "Music playback",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply { description = "Playback controls for MR. PERFECT YADAV Music" }
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Premium MR. PERFECT YADAV music controls and playback pop-up"
+                enableLights(true)
+                lightColor = android.graphics.Color.rgb(155, 92, 255)
+            }
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
@@ -116,10 +148,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MrPerfectApp() {
     val context = LocalContext.current
+    val sharedYoutubeUrl = (context as? MainActivity)?.sharedYoutubeUrl
     var searchQuery by remember { mutableStateOf("") }
     var onlineSongs by remember { mutableStateOf(listOf<LocalSong>()) }
     var isSearching by remember { mutableStateOf(false) }
     var searchMessage by remember { mutableStateOf("Search for a song, artist or album.") }
+    var downloadMessage by remember { mutableStateOf("") }
+    var permittedFileUrl by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     var songs by remember { mutableStateOf(listOf<LocalSong>()) }
     var currentIndex by remember { mutableIntStateOf(-1) }
@@ -131,10 +166,20 @@ fun MrPerfectApp() {
     var bassBoost by remember { mutableStateOf<BassBoost?>(null) }
     var bassBoostEnabled by remember { mutableStateOf(false) }
     var autoPlayNext by remember { mutableStateOf(true) }
+    var shuffleEnabled by remember { mutableStateOf(false) }
+    var repeatCurrent by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showSettings by remember { mutableStateOf(false) }
+    var showNowPlaying by remember { mutableStateOf(false) }
+    var showDjToolkit by remember { mutableStateOf(false) }
+    var updateMessage by remember { mutableStateOf("Check whether a newer APK is available.") }
+    var updateUrl by remember { mutableStateOf<String?>(null) }
+    var checkingUpdates by remember { mutableStateOf(false) }
+    var showAssistant by remember { mutableStateOf(false) }
+    var currentPage by remember { mutableStateOf("HOME") }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
+    var eqBandLevels by remember { mutableStateOf(listOf<Float>()) }
     val player = remember { MediaPlayer() }
 
     val picker = rememberLauncherForActivityResult(
@@ -180,18 +225,27 @@ fun MrPerfectApp() {
                     equalizer = effect
                     eqPresetNames = (0 until effect.numberOfPresets.toInt()).map { effect.getPresetName(it.toShort()).toString() }
                     selectedEqPreset = -1
+                    eqBandLevels = (0 until effect.numberOfBands.toInt()).map { effect.getBandLevel(it.toShort()).toFloat() }
                 }.onFailure {
                     equalizer = null
                     eqPresetNames = emptyList()
                     selectedEqPreset = -1
+                    eqBandLevels = emptyList()
                 }
                 isPreparing = false
                 mp.start()
                 isPlaying = true
             }
             player.setOnCompletionListener {
-                if (autoPlayNext && currentIndex + 1 < songs.size) playTrack(currentIndex + 1)
-                else { isPlaying = false; position = 0 }
+                when {
+                    repeatCurrent && currentIndex in songs.indices -> playTrack(currentIndex)
+                    shuffleEnabled && songs.isNotEmpty() -> {
+                        val candidates = songs.indices.filter { it != currentIndex }.ifEmpty { songs.indices.toList() }
+                        playTrack(candidates.random())
+                    }
+                    autoPlayNext && currentIndex + 1 < songs.size -> playTrack(currentIndex + 1)
+                    else -> { isPlaying = false; position = 0 }
+                }
             }
             player.setOnErrorListener { _, _, _ ->
                 isPreparing = false
@@ -248,11 +302,13 @@ fun MrPerfectApp() {
     }
 
     MaterialTheme(colorScheme = darkColorScheme(
-        primary = Red, background = Black, surface = Panel,
+        primary = Blue, secondary = Green, tertiary = Purple,
+        background = Black, surface = Panel,
         onPrimary = White, onBackground = White, onSurface = White
     )) {
-        BackHandler(enabled = showSettings || onlineSongs.isNotEmpty() || searchQuery.isNotBlank()) {
+        BackHandler(enabled = showAssistant || showSettings || onlineSongs.isNotEmpty() || searchQuery.isNotBlank()) {
             when {
+                showAssistant -> showAssistant = false
                 showSettings -> showSettings = false
                 onlineSongs.isNotEmpty() -> {
                     onlineSongs = emptyList()
@@ -264,6 +320,7 @@ fun MrPerfectApp() {
                 }
             }
         }
+        CompositionLocalProvider(LocalTextStyle provides TextStyle(fontWeight = FontWeight.Bold)) {
         Box(Modifier.fillMaxSize()) {
             Image(
                 painter = painterResource(id = R.drawable.home_background),
@@ -275,7 +332,7 @@ fun MrPerfectApp() {
             Box(
                 Modifier.fillMaxSize().background(
                     Brush.verticalGradient(
-                        listOf(Color(0xB8080808), Color(0xD9080808), Color(0xF2080808))
+                        listOf(Color(0xB8081714), Color(0xD90C1020), Color(0xF2180B19))
                     )
                 )
             )
@@ -288,7 +345,7 @@ fun MrPerfectApp() {
                 item {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("MR. PERFECT YADAV", color = Red, fontSize = 12.sp,
+                            Text("MR. PERFECT YADAV", color = Green, fontSize = 12.sp,
                                 fontWeight = FontWeight.Black, letterSpacing = 2.5.sp)
                             Text("Good music. Good mood.", color = White, fontSize = 25.sp,
                                 fontWeight = FontWeight.ExtraBold)
@@ -298,8 +355,30 @@ fun MrPerfectApp() {
                             contentDescription = "MR. PERFECT YADAV profile photo",
                             modifier = Modifier.size(54.dp).clip(CircleShape)
                         )
+                        IconButton(onClick = { showAssistant = true }) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = "AI Assistant", tint = Red)
+                        }
+                        IconButton(onClick = { showDjToolkit = true }) {
+                            Icon(Icons.Default.GraphicEq, contentDescription = "DJ Toolkit", tint = Green)
+                        }
                         IconButton(onClick = { showSettings = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Red)
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Blue)
+                        }
+                    }
+                }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text("APP PAGES", color = White, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
+                        SmallLinkCard("Music Player", "Your songs and playback controls", Icons.Default.MusicNote) { currentPage = "MUSIC" }
+                        SmallLinkCard("WEB MUSIC PLAYER", "Connect your hosted Telegram Web Player", Icons.Default.Language) { currentPage = "WEB_PLAYER" }
+                        SmallLinkCard("Downloads", "Direct file downloads and status", Icons.Default.Download) { currentPage = "DOWNLOADS" }
+                        SmallLinkCard("Equalizer", "Sound presets and Bass Boost", Icons.Default.Equalizer) { currentPage = "EQUALIZER" }
+                        SmallLinkCard("DJ Toolkit", "DJ controls and tools", Icons.Default.GraphicEq) { currentPage = "DJ"; showDjToolkit = true }
+                        SmallLinkCard("Studio Master", "Recording, mixing and vocal effects", Icons.Default.Mic) { currentPage = "STUDIO" }
+                        SmallLinkCard("AI Assistant", "Open the assistant chat", Icons.Default.AutoAwesome) { currentPage = "AI"; showAssistant = true }
+                        SmallLinkCard("Settings", "Playback and app updates", Icons.Default.Settings) { currentPage = "SETTINGS"; showSettings = true }
+                        if (!sharedYoutubeUrl.isNullOrBlank()) {
+                            SmallLinkCard("Shared YouTube Link", "View the link shared to this app", Icons.Default.Share) { currentPage = "SHARED" }
                         }
                     }
                 }
@@ -311,7 +390,7 @@ fun MrPerfectApp() {
                     ) {
                         Box(
                             Modifier.fillMaxSize().background(
-                                Brush.linearGradient(listOf(Color(0xFF9E1515), Color(0xFF3A0808), Color(0xFF171717)))
+                                Brush.linearGradient(listOf(Color(0xFF123D2D), Color(0xFF12365E), Color(0xFF39205A), Color(0xFF4A1727), Color(0xFF101923)))
                             ).padding(20.dp)
                         ) {
                             Column(Modifier.align(Alignment.CenterStart)) {
@@ -336,6 +415,90 @@ fun MrPerfectApp() {
                     }
                 }
                 item {
+                    if (!sharedYoutubeUrl.isNullOrBlank()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = Panel)
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Share, contentDescription = null, tint = Red)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("YouTube link received", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                                }
+                                Text(sharedYoutubeUrl!!, color = Muted, fontSize = 12.sp)
+                                Text("You can open this shared link in YouTube. Offline saving is available through YouTube Music Premium where supported; this app cannot extract YouTube audio/video into an MP3 or MP4 file.", color = Muted, fontSize = 12.sp)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(
+                                        onClick = { openLink(context, sharedYoutubeUrl!!) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = White)
+                                    ) { Text("Open YouTube") }
+                                    OutlinedButton(onClick = { openLink(context, "https://music.youtube.com/") }) {
+                                        Text("YouTube Music")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Panel)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Download, contentDescription = null, tint = Green)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Direct Media Downloads", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                            }
+                            Divider(color = PanelLight)
+                            Text("Paste a direct HTTPS link to a media file you own or are authorized to download. Supported: MP3, M4A, OGG, MP4, WEBM.", color = Muted, fontSize = 12.sp)
+                            OutlinedTextField(
+                                value = permittedFileUrl,
+                                onValueChange = { permittedFileUrl = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                placeholder = { Text("Paste direct media file URL") },
+                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = White, unfocusedTextColor = White, focusedBorderColor = Green, unfocusedBorderColor = PanelLight)
+                            )
+                            Button(
+                                onClick = {
+                                    val uri = runCatching { Uri.parse(permittedFileUrl.trim()) }.getOrNull()
+                                    downloadMessage = if (uri != null) enqueuePermittedDownload(context, uri, uri.lastPathSegment ?: "media-file") else "Enter a valid media file link."
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Black)
+                            ) {
+                                Icon(Icons.Default.Download, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Download permitted file")
+                            }
+                            if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 12.sp)
+                            OutlinedButton(
+                                onClick = {
+                                    runCatching {
+                                        context.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS))
+                                    }.onFailure {
+                                        downloadMessage = "Downloads app could not be opened. Check the phone's Downloads folder."
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.FolderOpen, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Open Download Manager")
+                            }
+                            Text(
+                                "Download notifications and completed files are managed by Android. Find saved media in Downloads.",
+                                color = Muted, fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+                item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
@@ -343,7 +506,7 @@ fun MrPerfectApp() {
                     ) {
                         Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Verified, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.Verified, contentDescription = null, tint = Green)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Licensed music catalog", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                             }
@@ -353,7 +516,7 @@ fun MrPerfectApp() {
                             )
                             Divider(color = PanelLight)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Gavel, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.Gavel, contentDescription = null, tint = Blue)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Free legal full-length music", color = White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
@@ -362,7 +525,7 @@ fun MrPerfectApp() {
                                 color = Muted, fontSize = 12.sp
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Green)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Your phone's MP3 files", color = White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
@@ -385,8 +548,8 @@ fun MrPerfectApp() {
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = White, unfocusedTextColor = White,
-                            focusedBorderColor = Red, unfocusedBorderColor = PanelLight,
-                            focusedLabelColor = Red, cursorColor = Red
+                            focusedBorderColor = Blue, unfocusedBorderColor = PanelLight,
+                            focusedLabelColor = Green, cursorColor = Green
                         ),
                         trailingIcon = {
                             IconButton(onClick = {
@@ -397,9 +560,12 @@ fun MrPerfectApp() {
                                     val found = withContext(Dispatchers.IO) {
                                         runCatching {
                                             val safeQuery = q.replace("\\", " ").replace("\"", " ").trim()
-                                            val archiveQuery = "mediatype:audio AND licenseurl:http* AND title:\"$safeQuery\""
+                                            val terms = safeQuery.split(Regex("\\s+")).filter { it.length > 1 }.take(6)
+                                            val phraseQuery = "(title:\"$safeQuery\" OR creator:\"$safeQuery\")"
+                                            val tokenQuery = terms.joinToString(" OR ") { "title:$it OR creator:$it OR description:$it" }
+                                            val archiveQuery = "mediatype:audio AND ($phraseQuery OR $tokenQuery)"
                                             val encoded = URLEncoder.encode(archiveQuery, "UTF-8")
-                                            val searchUrl = URL("https://archive.org/advancedsearch.php?q=$encoded&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=licenseurl&rows=40&page=1&sort[]=downloads+desc&output=json")
+                                            val searchUrl = URL("https://archive.org/advancedsearch.php?q=$encoded&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=licenseurl&rows=100&page=1&sort[]=downloads+desc&output=json")
                                             val connection = (searchUrl.openConnection() as HttpURLConnection)
                                             connection.connectTimeout = 15000
                                             connection.readTimeout = 20000
@@ -407,45 +573,63 @@ fun MrPerfectApp() {
                                             try {
                                                 val body = connection.inputStream.bufferedReader().use { it.readText() }
                                                 val docs = JSONObject(body).getJSONObject("response").getJSONArray("docs")
-                                                buildList {
-                                                    for (i in 0 until docs.length()) {
-                                                        val doc = docs.getJSONObject(i)
-                                                        val identifier = doc.optString("identifier")
-                                                        val license = doc.optString("licenseurl").lowercase()
-                                                        if (identifier.isBlank() || !(license.contains("creativecommons.org") || license.contains("publicdomain"))) continue
-                                                        val metadataUrl = URL("https://archive.org/metadata/${Uri.encode(identifier)}")
-                                                        val metaConnection = (metadataUrl.openConnection() as HttpURLConnection)
-                                                        metaConnection.connectTimeout = 10000
-                                                        metaConnection.readTimeout = 12000
-                                                        try {
-                                                            val metaText = metaConnection.inputStream.bufferedReader().use { it.readText() }
-                                                            val files = JSONObject(metaText).optJSONArray("files") ?: continue
-                                                            var audioFile: String? = null
-                                                            for (j in 0 until files.length()) {
-                                                                val file = files.optJSONObject(j) ?: continue
-                                                                val name = file.optString("name")
-                                                                val format = file.optString("format")
-                                                                if (name.lowercase().endsWith(".mp3") &&
-                                                                    (format.contains("mp3", true) || format.contains("audio", true))) {
-                                                                    audioFile = name
-                                                                    break
+                                                coroutineScope {
+                                                    (0 until minOf(docs.length(), 40)).map { i ->
+                                                        async {
+                                                            runCatching {
+                                                                val doc = docs.getJSONObject(i)
+                                                                val identifier = doc.optString("identifier")
+                                                                if (identifier.isBlank()) return@runCatching null
+                                                                val metadataUrl = URL("https://archive.org/metadata/${Uri.encode(identifier)}")
+                                                                val metaConnection = (metadataUrl.openConnection() as HttpURLConnection)
+                                                                metaConnection.connectTimeout = 10000
+                                                                metaConnection.readTimeout = 12000
+                                                                try {
+                                                                    val metaText = metaConnection.inputStream.bufferedReader().use { it.readText() }
+                                                                    val metadataRoot = JSONObject(metaText)
+                                                                    val metadata = metadataRoot.optJSONObject("metadata")
+                                                                    val license = (doc.optString("licenseurl").takeIf { it.isNotBlank() }
+                                                                        ?: metadata?.optString("licenseurl").orEmpty()).lowercase()
+                                                                    val allowedLicense = license.contains("creativecommons.org/licenses") ||
+                                                                        license.contains("creativecommons.org/publicdomain") ||
+                                                                        license.contains("publicdomain")
+                                                                    if (!allowedLicense) return@runCatching null
+                                                                    val files = metadataRoot.optJSONArray("files") ?: return@runCatching null
+                                                                    var audioFile: String? = null
+                                                                    for (j in 0 until files.length()) {
+                                                                        val file = files.optJSONObject(j) ?: continue
+                                                                        val name = file.optString("name")
+                                                                        val format = file.optString("format")
+                                                                        val playable = name.lowercase().endsWith(".mp3") ||
+                                                                            name.lowercase().endsWith(".m4a") ||
+                                                                            name.lowercase().endsWith(".ogg")
+                                                                        if (playable && (format.contains("mp3", true) ||
+                                                                                format.contains("mpeg", true) ||
+                                                                                format.contains("aac", true) ||
+                                                                                format.contains("ogg", true) ||
+                                                                                format.contains("audio", true))) {
+                                                                            audioFile = name
+                                                                            break
+                                                                        }
+                                                                    }
+                                                                    val selectedFile = audioFile ?: return@runCatching null
+                                                                    val title = doc.optString("title", "Untitled audio")
+                                                                    val creator = doc.optString("creator", "Unknown artist")
+                                                                    val streamUrl = "https://archive.org/download/${Uri.encode(identifier)}/${Uri.encode(selectedFile)}"
+                                                                    LocalSong(Uri.parse(streamUrl), "$title — $creator")
+                                                                } finally {
+                                                                    metaConnection.disconnect()
                                                                 }
-                                                            }
-                                                            if (audioFile != null) {
-                                                                val title = doc.optString("title", "Untitled audio")
-                                                                val creator = doc.optString("creator", "Unknown artist")
-                                                                val streamUrl = "https://archive.org/download/${Uri.encode(identifier)}/${Uri.encode(audioFile!!)}"
-                                                                add(LocalSong(Uri.parse(streamUrl), "$title — $creator"))
-                                                            }
-                                                        } finally { metaConnection.disconnect() }
-                                                    }
+                                                            }.getOrNull()
+                                                        }
+                                                    }.awaitAll().filterNotNull()
                                                 }
                                             } finally { connection.disconnect() }
                                         }.getOrDefault(emptyList())
                                     }
                                     onlineSongs = found
                                     songs = (songs + found).distinctBy { it.uri }
-                                    searchMessage = if (found.isEmpty()) "No licensed full tracks found. Try another title or artist." else "Full-length Creative Commons / public-domain tracks found. Tap to stream in this app."
+                                    searchMessage = if (found.isEmpty()) "No matching licensed MP3 found. Try a shorter song name, artist name, or another spelling." else "${found.size} licensed MP3 track(s) found. Tap Play to stream."
                                     isSearching = false
                                 }
                             }) {
@@ -456,7 +640,7 @@ fun MrPerfectApp() {
                     Spacer(Modifier.height(6.dp))
                     Text(searchMessage, color = Muted, fontSize = 12.sp)
                     if (isSearching) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Red)
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Blue, trackColor = PanelLight)
                     }
                     onlineSongs.forEach { song ->
                         Row(
@@ -476,12 +660,14 @@ fun MrPerfectApp() {
                             }) {
                                 Icon(Icons.Default.PlayCircle, contentDescription = "Play full track", tint = Red)
                             }
-                            IconButton(onClick = { downloadFullTrack(context, song) }) {
-                                Icon(Icons.Default.Download, contentDescription = "Download full track", tint = White)
+                            IconButton(onClick = {
+                                downloadMessage = enqueuePermittedDownload(context, song.uri, song.title)
+                            }) {
+                                Icon(Icons.Default.Download, contentDescription = "Download permitted track", tint = Green)
                             }
                         }
                     }
-                    Text("Play or download full-length tracks. Download is offered for the Creative Commons / public-domain results shown here.", color = Muted, fontSize = 10.sp)
+                    if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 11.sp)
                 }
                 item {
                     Card(
@@ -491,7 +677,7 @@ fun MrPerfectApp() {
                     ) {
                         Column(Modifier.fillMaxWidth().padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Equalizer, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.Equalizer, contentDescription = null, tint = Blue)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Audio Equalizer", color = White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             }
@@ -516,8 +702,45 @@ fun MrPerfectApp() {
                                         )
                                     }
                                 }
+                                val activeEq = equalizer
+                                if (activeEq != null) {
+                                    val bandCount = runCatching { activeEq.numberOfBands.toInt() }.getOrDefault(0)
+                                    val levelRange = runCatching { activeEq.bandLevelRange }.getOrNull()
+                                    if (levelRange != null && bandCount > 0) {
+                                        Text("Manual band controls", color = White, fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(top = 8.dp))
+                                        for (bandIndex in 0 until bandCount) {
+                                            val band = bandIndex.toShort()
+                                            val centerHz = runCatching { activeEq.getCenterFreq(band) / 1000 }.getOrDefault(0)
+                                            val currentLevel = runCatching { activeEq.getBandLevel(band).toFloat() }.getOrDefault(0f)
+                                            Column {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(if (centerHz >= 1000) "${centerHz / 1000f} kHz" else "$centerHz Hz",
+                                                        color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                                    Text("${String.format("%+.1f", currentLevel / 100f)} dB",
+                                                        color = Muted, fontSize = 11.sp)
+                                                }
+                                                Slider(
+                                                    value = currentLevel.coerceIn(levelRange[0].toFloat(), levelRange[1].toFloat()),
+                                                    onValueChange = { value ->
+                                                        runCatching {
+                                                            activeEq.setBandLevel(band, value.toInt().toShort())
+                                                            selectedEqPreset = -1
+                                                        }
+                                                    },
+                                                    valueRange = levelRange[0].toFloat()..levelRange[1].toFloat(),
+                                                    colors = SliderDefaults.colors(thumbColor = Red, activeTrackColor = Red)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                Text("Equalizer controls appear after a local song starts playing. Your phone must support Android audio effects.",
+                                    color = Muted, fontSize = 11.sp)
                             }
-                            Text("Dolby Atmos is available only on supported phones; this uses Android's built-in equalizer.", color = Muted, fontSize = 10.sp)
+                            Text("Preset and manual frequency controls use Android's built-in Equalizer. Actual effect depends on device support.",
+                                color = Muted, fontSize = 10.sp)
                             Spacer(Modifier.height(10.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Bass Boost", color = White, modifier = Modifier.weight(1f))
@@ -542,7 +765,7 @@ fun MrPerfectApp() {
                     item {
                         Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
                             Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.LibraryMusic, contentDescription = null, tint = Red, modifier = Modifier.size(38.dp))
+                                Icon(Icons.Default.LibraryMusic, contentDescription = null, tint = Green, modifier = Modifier.size(38.dp))
                                 Spacer(Modifier.height(8.dp))
                                 Text("No songs added yet", color = White, fontWeight = FontWeight.Bold)
                                 Text("Add MP3 files from your phone to start listening.", color = Muted,
@@ -554,14 +777,14 @@ fun MrPerfectApp() {
                     itemsIndexed(songs) { index, song ->
                         Row(
                             Modifier.fillMaxWidth().background(
-                                if (index == currentIndex) Color(0xFF351010) else Panel,
+                                if (index == currentIndex) Color(0xFF123B35) else Panel,
                                 RoundedCornerShape(14.dp)
                             ).clickable { playTrack(index) }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(Modifier.size(44.dp).background(PanelLight, RoundedCornerShape(10.dp)),
                                 contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = Blue)
                             }
                             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                                 Text(song.title, color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
@@ -575,6 +798,7 @@ fun MrPerfectApp() {
                         }
                     }
                 }
+                item { LibraryFeaturePanel(trackTitles = songs.map { it.title }, currentIndex = currentIndex) }
                 item { Text("Connect", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                 item { SmallLinkCard("Telegram Bot", "t.me/Mr_perfect_yadav_07robot", Icons.Default.Send) {
                     openLink(context, "https://t.me/Mr_perfect_yadav_07robot")
@@ -592,51 +816,399 @@ fun MrPerfectApp() {
             }
 
             if (currentIndex in songs.indices) {
-                Column(Modifier.fillMaxWidth().background(Color(0xFF202020)).padding(horizontal = 14.dp, vertical = 8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.MusicNote, contentDescription = null, tint = Red, modifier = Modifier.size(30.dp))
-                        Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                            Text(songs[currentIndex].title, color = White, fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (isPreparing) "Loading..." else "MR. PERFECT YADAV MUSIC",
-                                color = Muted, fontSize = 10.sp)
-                        }
-                        IconButton(onClick = { if (currentIndex > 0) playTrack(currentIndex - 1) }) {
-                            Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = White)
-                        }
-                        IconButton(onClick = {
-                            if (isPreparing) return@IconButton
-                            if (isPlaying) {
-                                runCatching { player.pause() }
-                                isPlaying = false
-                            } else {
-                                runCatching {
-                                    if (duration > 0) player.start()
-                                    else playTrack(currentIndex)
-                                }
-                                isPlaying = true
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)
+                        .clickable { showNowPlaying = true },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Panel),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .background(Brush.linearGradient(listOf(Color(0xFF142C2B), Color(0xFF142943), Color(0xFF251B2A))))
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(42.dp).clip(RoundedCornerShape(13.dp))
+                                    .background(Brush.linearGradient(listOf(Green, Blue))),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = White,
+                                    modifier = Modifier.size(24.dp))
                             }
-                        }) {
-                            Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = "Play pause", tint = Red, modifier = Modifier.size(30.dp))
+                            Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                                Text(songs[currentIndex].title, color = White, fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(if (isPreparing) "Loading..." else "MR. PERFECT YADAV • NOW PLAYING",
+                                    color = Muted, fontSize = 9.sp, letterSpacing = 0.7.sp)
+                            }
+                            Text(if (isPlaying) "PLAYING" else if (isPreparing) "LOADING" else "PAUSED",
+                                color = if (isPlaying) Green else Blue, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                         }
-                        IconButton(onClick = { if (currentIndex + 1 < songs.size) playTrack(currentIndex + 1) }) {
-                            Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = White)
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PremiumPlaybackButton(
+                                icon = Icons.Default.SkipPrevious, description = "Previous song",
+                                size = 46.dp, colors = listOf(Blue, Color(0xFF2455A8)),
+                                enabled = currentIndex > 0,
+                                onClick = { if (currentIndex > 0) playTrack(currentIndex - 1) }
+                            )
+                            Spacer(Modifier.width(22.dp))
+                            PremiumPlaybackButton(
+                                icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                description = if (isPlaying) "Pause" else "Play",
+                                size = 58.dp, colors = listOf(Green, Blue),
+                                enabled = !isPreparing,
+                                onClick = {
+                                    if (isPreparing) return@PremiumPlaybackButton
+                                    if (isPlaying) {
+                                        runCatching { player.pause() }
+                                        isPlaying = false
+                                    } else {
+                                        runCatching {
+                                            if (duration > 0) player.start()
+                                            else playTrack(currentIndex)
+                                        }
+                                        isPlaying = true
+                                    }
+                                }
+                            )
+                            Spacer(Modifier.width(22.dp))
+                            PremiumPlaybackButton(
+                                icon = Icons.Default.SkipNext, description = "Next song",
+                                size = 46.dp, colors = listOf(Red, Color(0xFFB62949)),
+                                enabled = currentIndex + 1 < songs.size,
+                                onClick = { if (currentIndex + 1 < songs.size) playTrack(currentIndex + 1) }
+                            )
                         }
-                    }
-                    if (duration > 0) {
-                        Slider(
-                            value = position.coerceIn(0, duration).toFloat(),
-                            onValueChange = { position = it.toInt() },
-                            onValueChangeFinished = { runCatching { player.seekTo(position) } },
-                            valueRange = 0f..duration.toFloat(),
-                            modifier = Modifier.height(22.dp),
-                            colors = SliderDefaults.colors(thumbColor = Red, activeTrackColor = Red)
-                        )
+                        if (duration > 0) {
+                            Spacer(Modifier.height(8.dp))
+                            Slider(
+                                value = position.coerceIn(0, duration).toFloat(),
+                                onValueChange = { position = it.toInt() },
+                                onValueChangeFinished = { runCatching { player.seekTo(position) } },
+                                valueRange = 0f..duration.toFloat(),
+                                modifier = Modifier.height(24.dp),
+                                colors = SliderDefaults.colors(thumbColor = Green, activeTrackColor = Blue,
+                                    inactiveTrackColor = PanelLight)
+                            )
+                        }
                     }
                 }
             }
             }
+        }
+        BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
+        if (showNowPlaying && currentIndex in songs.indices) {
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.linearGradient(listOf(Color(0xFF07120F), Color(0xFF0A1930), Color(0xFF24101A)))
+                ).padding(horizontal = 22.dp, vertical = 18.dp)
+            ) {
+                Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { showNowPlaying = false }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = White)
+                        }
+                        Text("NOW PLAYING", color = Green, fontSize = 13.sp,
+                            fontWeight = FontWeight.Black, letterSpacing = 2.sp,
+                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                        Icon(Icons.Default.MoreVert, contentDescription = "More", tint = White)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Box(
+                        Modifier.fillMaxWidth().aspectRatio(1f).padding(horizontal = 18.dp)
+                            .clip(RoundedCornerShape(30.dp))
+                            .background(Brush.linearGradient(listOf(Green.copy(alpha = .85f), Blue, Red.copy(alpha = .8f)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Album, contentDescription = "Album artwork",
+                            tint = White.copy(alpha = .92f), modifier = Modifier.size(150.dp))
+                    }
+                    Spacer(Modifier.height(30.dp))
+                    Text(songs[currentIndex].title, color = White, fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold, maxLines = 2, textAlign = TextAlign.Center,
+                        overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(6.dp))
+                    Text("MR. PERFECT YADAV • MUSIC PLAYER", color = Muted,
+                        fontSize = 11.sp, letterSpacing = 1.sp)
+                    Spacer(Modifier.height(22.dp))
+                    Slider(
+                        value = position.coerceIn(0, duration.coerceAtLeast(1)).toFloat(),
+                        onValueChange = { position = it.toInt() },
+                        onValueChangeFinished = { runCatching { player.seekTo(position) } },
+                        valueRange = 0f..duration.coerceAtLeast(1).toFloat(),
+                        colors = SliderDefaults.colors(thumbColor = Green, activeTrackColor = Blue,
+                            inactiveTrackColor = PanelLight)
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("%d:%02d".format(position / 60000, (position / 1000) % 60),
+                            color = Muted, fontSize = 11.sp)
+                        Text("%d:%02d".format(duration / 60000, (duration / 1000) % 60),
+                            color = Muted, fontSize = 11.sp)
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { shuffleEnabled = !shuffleEnabled }) {
+                            Icon(Icons.Default.Shuffle, contentDescription = "Shuffle",
+                                tint = if (shuffleEnabled) Green else Muted)
+                        }
+                        PremiumPlaybackButton(
+                            icon = Icons.Default.SkipPrevious, description = "Previous song",
+                            size = 54.dp, colors = listOf(Blue, Color(0xFF2455A8)),
+                            enabled = currentIndex > 0,
+                            onClick = { if (currentIndex > 0) playTrack(currentIndex - 1) }
+                        )
+                        PremiumPlaybackButton(
+                            icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            description = if (isPlaying) "Pause" else "Play",
+                            size = 76.dp, colors = listOf(Green, Blue), enabled = !isPreparing,
+                            onClick = {
+                                if (!isPreparing) {
+                                    if (isPlaying) { runCatching { player.pause() }; isPlaying = false }
+                                    else { runCatching { if (duration > 0) player.start() else playTrack(currentIndex) }; isPlaying = true }
+                                }
+                            }
+                        )
+                        PremiumPlaybackButton(
+                            icon = Icons.Default.SkipNext, description = "Next song",
+                            size = 54.dp, colors = listOf(Red, Color(0xFFB62949)),
+                            enabled = currentIndex + 1 < songs.size,
+                            onClick = { if (currentIndex + 1 < songs.size) playTrack(currentIndex + 1) }
+                        )
+                        IconButton(onClick = { repeatCurrent = !repeatCurrent }) {
+                            Icon(Icons.Default.RepeatOne, contentDescription = "Repeat current song",
+                                tint = if (repeatCurrent) Red else Muted)
+                        }
+                    }
+                    Spacer(Modifier.weight(1f))
+                    if (songs[currentIndex].uri.host?.endsWith("archive.org") == true) {
+                        OutlinedButton(onClick = {
+                            downloadMessage = enqueuePermittedDownload(context, songs[currentIndex].uri, songs[currentIndex].title)
+                        }) {
+                            Icon(Icons.Default.Download, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Download permitted track")
+                        }
+                        if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 11.sp)
+                    }
+                    Text(if (isPreparing) "LOADING TRACK…" else if (isPlaying) "NOW PLAYING" else "PAUSED",
+                        color = if (isPlaying) Green else Blue, fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
+                }
+            }
+        }
+        if (currentPage != "HOME") {
+            FeaturePage(
+                page = currentPage,
+                onBack = { currentPage = "HOME"; showAssistant = false; showDjToolkit = false; showSettings = false },
+                content = {
+                    when (currentPage) {
+                        "WEB_PLAYER" -> {
+                            WebPlayerScreen(modifier = Modifier.weight(1f))
+                        }
+                        "MUSIC" -> {
+                            Text("Your music library", color = Muted, fontSize = 13.sp)
+                            if (currentIndex in songs.indices) {
+                                Text("Now playing: ${songs[currentIndex].title}", color = Green, fontWeight = FontWeight.Bold)
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Button(onClick = { showNowPlaying = true }, colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Black)) { Text("Open Player") }
+                                    OutlinedButton(onClick = { if (isPlaying) { player.pause(); isPlaying = false } else if (currentIndex in songs.indices) { if (duration > 0) player.start() else playTrack(currentIndex); isPlaying = true } }) { Text(if (isPlaying) "Pause" else "Play") }
+                                }
+                            }
+                            Button(onClick = { picker.launch(arrayOf("audio/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Add songs from phone") }
+                            if (songs.isEmpty()) Text("No songs added yet. Add MP3 files from your phone.", color = Muted)
+                            songs.forEachIndexed { index, song ->
+                                SmallLinkCard(song.title, if (index == currentIndex) "Now playing" else "Tap to play", Icons.Default.MusicNote) { playTrack(index) }
+                            }
+                        }
+                        "DOWNLOADS" -> {
+                            Text("Paste a direct HTTPS MP3, M4A, OGG, MP4 or WEBM file link that you are allowed to download.", color = Muted, fontSize = 12.sp)
+                            OutlinedTextField(value = permittedFileUrl, onValueChange = { permittedFileUrl = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("https://example.com/song.mp3") })
+                            Button(onClick = {
+                                val uri = runCatching { Uri.parse(permittedFileUrl.trim()) }.getOrNull()
+                                downloadMessage = if (uri != null) enqueuePermittedDownload(context, uri, uri.lastPathSegment ?: "media-file") else "Enter a valid media file link."
+                            }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Black)) { Icon(Icons.Default.Download, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Download file") }
+                            if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 12.sp)
+                            OutlinedButton(onClick = { runCatching { context.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)) } }, modifier = Modifier.fillMaxWidth()) { Text("Open Android Download Manager") }
+                            Text("YouTube links open in YouTube; this app does not extract YouTube streams into MP3/MP4.", color = Muted, fontSize = 11.sp)
+                        }
+                        "EQUALIZER" -> {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(26.dp),
+                                colors = CardDefaults.cardColors(containerColor = Panel),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().background(
+                                        Brush.linearGradient(listOf(Color(0xFF153C35), Color(0xFF142E50), Color(0xFF321C48)))
+                                    ).padding(18.dp),
+                                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(Green, Blue, Purple))),
+                                            contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Default.Equalizer, contentDescription = null, tint = White, modifier = Modifier.size(28.dp))
+                                        }
+                                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                            Text("STUDIO SOUND ENGINE", color = Green, fontSize = 10.sp, letterSpacing = 1.8.sp)
+                                            Text("Premium Equalizer", color = White, fontSize = 21.sp, fontWeight = FontWeight.Black)
+                                        }
+                                        Text("PRO", color = White, fontSize = 11.sp,
+                                            modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Purple, Red))).padding(horizontal = 11.dp, vertical = 6.dp))
+                                    }
+                                    Text(if (currentIndex in songs.indices) "NOW TUNING • ${songs[currentIndex].title}" else "Play a local song to unlock live sound controls.",
+                                        color = Muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("SOUND PRESETS", color = White, fontSize = 12.sp, letterSpacing = 1.2.sp)
+                                    if (eqPresetNames.isEmpty()) {
+                                        Text("No presets available yet. Start a song and check your device audio-effect support.", color = Muted, fontSize = 12.sp)
+                                    } else {
+                                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                                            eqPresetNames.forEachIndexed { index, preset ->
+                                                FilterChip(
+                                                    selected = selectedEqPreset == index,
+                                                    onClick = {
+                                                        runCatching {
+                                                            equalizer?.usePreset(index.toShort())
+                                                            selectedEqPreset = index
+                                                            eqBandLevels = (0 until (equalizer?.numberOfBands?.toInt() ?: 0)).map { equalizer?.getBandLevel(it.toShort())?.toFloat() ?: 0f }
+                                                        }
+                                                    },
+                                                    label = { Text(preset, fontWeight = FontWeight.Bold) },
+                                                    modifier = Modifier.padding(end = 7.dp),
+                                                    colors = FilterChipDefaults.filterChipColors(
+                                                        selectedContainerColor = Purple, selectedLabelColor = White,
+                                                        containerColor = PanelLight, labelColor = White
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Divider(color = White.copy(alpha = .14f))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("MANUAL 5-BAND / DEVICE EQ", color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                        Text("LIVE", color = Green, fontSize = 10.sp)
+                                    }
+                                    val activeEq = equalizer
+                                    val range = runCatching { activeEq?.bandLevelRange }.getOrNull()
+                                    if (activeEq != null && range != null && eqBandLevels.isNotEmpty()) {
+                                        eqBandLevels.forEachIndexed { index, level ->
+                                            val hz = runCatching { activeEq.getCenterFreq(index.toShort()) / 1000 }.getOrDefault(0)
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(if (hz >= 1000) "${hz / 1000f} kHz" else "${hz} Hz",
+                                                        color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                                    Text(String.format("%+.1f dB", level / 100f), color = Green, fontSize = 11.sp)
+                                                }
+                                                Slider(
+                                                    value = level.coerceIn(range[0].toFloat(), range[1].toFloat()),
+                                                    onValueChange = { value ->
+                                                        runCatching {
+                                                            activeEq.setBandLevel(index.toShort(), value.toInt().toShort())
+                                                            eqBandLevels = eqBandLevels.toMutableList().also { it[index] = value }
+                                                            selectedEqPreset = -1
+                                                        }
+                                                    },
+                                                    valueRange = range[0].toFloat()..range[1].toFloat(),
+                                                    colors = SliderDefaults.colors(thumbColor = Purple, activeTrackColor = Green, inactiveTrackColor = PanelLight)
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        Text("Manual frequency sliders will appear when a track is playing.", color = Muted, fontSize = 11.sp)
+                                    }
+                                    Divider(color = White.copy(alpha = .14f))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("BASS BOOST", color = White, fontSize = 13.sp)
+                                            Text("Deeper low-end punch", color = Muted, fontSize = 10.sp)
+                                        }
+                                        Switch(checked = bassBoostEnabled, onCheckedChange = { enabled ->
+                                            bassBoostEnabled = enabled
+                                            runCatching { bassBoost?.enabled = enabled }
+                                        }, colors = SwitchDefaults.colors(checkedThumbColor = White, checkedTrackColor = Green))
+                                    }
+                                    Button(
+                                        onClick = {
+                                            runCatching {
+                                                equalizer?.let { eq ->
+                                                    eq.usePreset(0)
+                                                    selectedEqPreset = 0
+                                                    eqBandLevels = (0 until eq.numberOfBands.toInt()).map { eq.getBandLevel(it.toShort()).toFloat() }
+                                                }
+                                                bassBoostEnabled = false
+                                                bassBoost?.enabled = false
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(containerColor = White, contentColor = Black)
+                                    ) {
+                                        Icon(Icons.Default.RestartAlt, contentDescription = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("RESET SOUND")
+                                    }
+                                }
+                            }
+                            Text("Equalizer capability and sound output depend on your Android phone and audio hardware.", color = Muted, fontSize = 10.sp)
+                        }
+                        "STUDIO" -> {
+                            Text("STUDIO MASTER", color = Green, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                            Text("Your separate recording and audio-mixing workspace.", color = Muted, fontSize = 13.sp)
+                            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Panel)) {
+                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Mic, contentDescription = null, tint = Green)
+                                        Spacer(Modifier.width(10.dp))
+                                        Text("Voice Recording", color = White, fontWeight = FontWeight.Bold)
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.GraphicEq, contentDescription = null, tint = Blue)
+                                        Spacer(Modifier.width(10.dp))
+                                        Text("Audio Mixer", color = White, fontWeight = FontWeight.Bold)
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Tune, contentDescription = null, tint = Red)
+                                        Spacer(Modifier.width(10.dp))
+                                        Text("Vocal Effects • Echo • Reverb", color = White, fontWeight = FontWeight.Bold)
+                                    }
+                                    Text("Studio controls are a separate workspace. Recording and export controls will be enabled in a later update.", color = Muted, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                        "AI" -> {
+                            Text("AI Assistant page", color = Green, fontWeight = FontWeight.Bold)
+                            Text("Assistant chat is opening. If it is not visible, tap the button below.", color = Muted, fontSize = 12.sp)
+                            Button(onClick = { showAssistant = true }, modifier = Modifier.fillMaxWidth()) { Text("Open AI Assistant") }
+                        }
+                        "DJ" -> {
+                            Text("DJ Toolkit page", color = Green, fontWeight = FontWeight.Bold)
+                            Text("DJ tools are available in the dedicated toolkit panel.", color = Muted, fontSize = 12.sp)
+                            Button(onClick = { showDjToolkit = true }, modifier = Modifier.fillMaxWidth()) { Text("Open DJ Toolkit") }
+                        }
+                        "SETTINGS" -> {
+                            Text("App settings and update controls", color = Muted)
+                            Button(onClick = { showSettings = true }, modifier = Modifier.fillMaxWidth()) { Text("Open Settings") }
+                        }
+                        "SHARED" -> {
+                            Text(sharedYoutubeUrl ?: "No shared YouTube link received.", color = White, fontSize = 13.sp)
+                            Button(onClick = { sharedYoutubeUrl?.let { openLink(context, it) } }, enabled = !sharedYoutubeUrl.isNullOrBlank(), modifier = Modifier.fillMaxWidth()) { Text("Open YouTube") }
+                        }
+                    }
+                }
+            )
+        }
+        if (showAssistant) {
+            AssistantDialog(onDismiss = { showAssistant = false })
+        }
+        if (showDjToolkit) {
+            DjToolkitDialog(player = player, isPlaying = isPlaying, onDismiss = { showDjToolkit = false })
         }
         if (showSettings) {
             AlertDialog(
@@ -649,6 +1221,14 @@ fun MrPerfectApp() {
                             Text("Auto-play next song", modifier = Modifier.weight(1f))
                             Switch(checked = autoPlayNext, onCheckedChange = { autoPlayNext = it })
                         }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Shuffle playback", modifier = Modifier.weight(1f))
+                            Switch(checked = shuffleEnabled, onCheckedChange = { shuffleEnabled = it })
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Repeat current track", modifier = Modifier.weight(1f))
+                            Switch(checked = repeatCurrent, onCheckedChange = { repeatCurrent = it })
+                        }
                         Text("Audio playback speed: ${String.format("%.2f", playbackSpeed)}x")
                         Slider(value = playbackSpeed, onValueChange = { speed ->
                             playbackSpeed = speed
@@ -659,6 +1239,60 @@ fun MrPerfectApp() {
                         Text("Playback notification includes Previous, Play/Pause and Next controls. Lock-screen display depends on Android device settings and notification permission.", fontSize = 12.sp, color = Muted)
                         Text("Free online search is limited to tracks marked Creative Commons / Public Domain. A commercial licensed catalog needs a provider account and API credentials before it can be enabled.", fontSize = 12.sp, color = Muted)
                         Text("Phone MP3 files play locally in full. Background playback reliability still needs a dedicated foreground playback service and device testing.", fontSize = 12.sp, color = Muted)
+                        Divider(color = PanelLight)
+                        Text("App Updates", color = Red, fontWeight = FontWeight.Bold)
+                        Text(updateMessage, fontSize = 12.sp, color = Muted)
+                        Button(
+                            onClick = {
+                                if (!checkingUpdates) {
+                                    checkingUpdates = true
+                                    updateMessage = "Checking for updates…"
+                                    updateUrl = null
+                                    scope.launch {
+                                        val result = withContext(Dispatchers.IO) {
+                                            runCatching {
+                                                val connection = (URL("https://api.github.com/repos/Mrperfectyadav007/Mr-perfect-yadav-_07/releases/latest").openConnection() as HttpURLConnection)
+                                                connection.connectTimeout = 10000
+                                                connection.readTimeout = 10000
+                                                connection.setRequestProperty("Accept", "application/vnd.github+json")
+                                                try {
+                                                    if (connection.responseCode != 200) {
+                                                        "NO_RELEASE" to null
+                                                    } else {
+                                                        val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                                                        json.optString("tag_name", "latest") to json.optString("html_url").takeIf { it.startsWith("https://") }
+                                                    }
+                                                } finally { connection.disconnect() }
+                                            }
+                                        }
+                                        checkingUpdates = false
+                                        result.onSuccess { (tag, url) ->
+                                            if (tag == "NO_RELEASE" || url == null) {
+                                                updateMessage = "No published update is available yet."
+                                            } else {
+                                                updateMessage = "Latest release: $tag. Open the release page to download and install."
+                                                updateUrl = url
+                                            }
+                                        }.onFailure {
+                                            updateMessage = "Could not check updates. Please try again later."
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = !checkingUpdates,
+                            colors = ButtonDefaults.buttonColors(containerColor = Blue, contentColor = White)
+                        ) {
+                            if (checkingUpdates) CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp), color = White, strokeWidth = 2.dp
+                            ) else Icon(Icons.Default.SystemUpdate, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (checkingUpdates) "Checking…" else "Check for Updates")
+                        }
+                        if (updateUrl != null) {
+                            TextButton(onClick = { openLink(context, updateUrl!!) }) {
+                                Text("Open APK Update", color = Green)
+                            }
+                        }
                         Text("About MR. PERFECT YADAV", color = Red, fontWeight = FontWeight.Bold)
                         Text("Premium red-and-black music player", fontSize = 12.sp)
                     }
@@ -669,6 +1303,70 @@ fun MrPerfectApp() {
                 textContentColor = White
             )
         }
+    }
+}
+}
+
+
+@Composable
+private fun FeaturePage(
+    page: String,
+    onBack: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val title = when (page) {
+        "MUSIC" -> "MUSIC PLAYER"
+        "WEB_PLAYER" -> "WEB MUSIC PLAYER"
+        "DOWNLOADS" -> "DOWNLOAD MANAGER"
+        "EQUALIZER" -> "EQUALIZER"
+        "DJ" -> "DJ TOOLKIT"
+        "AI" -> "AI ASSISTANT"
+        "SETTINGS" -> "SETTINGS"
+        "SHARED" -> "SHARED LINK"
+        else -> "MR. PERFECT YADAV"
+    }
+    Box(
+        Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF07120F), Color(0xFF0A1930), Color(0xFF24101A))))
+            .padding(horizontal = 18.dp, vertical = 14.dp)
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back to Home", tint = White) }
+                Text(title, color = Green, fontWeight = FontWeight.Black, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                TextButton(onClick = onBack) { Text("HOME", color = Red, fontWeight = FontWeight.Bold) }
+            }
+            Divider(color = PanelLight)
+            Spacer(Modifier.height(14.dp))
+            Column(
+                Modifier.fillMaxSize().padding(bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                content = content
+            )
+        }
+    }
+}
+
+@Composable
+private fun PremiumPlaybackButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    size: androidx.compose.ui.unit.Dp,
+    colors: List<Color>,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier.size(size).clip(CircleShape)
+            .background(Brush.linearGradient(colors))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = if (enabled) White else White.copy(alpha = 0.35f),
+            modifier = Modifier.size(if (size >= 56.dp) 31.dp else 25.dp)
+        )
     }
 }
 
@@ -687,35 +1385,12 @@ private fun SmallLinkCard(
                 Text(title, color = White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Text(subtitle, color = Muted, fontSize = 11.sp)
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Red)
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Blue)
         }
     }
 }
 
 
-
-private fun downloadFullTrack(context: Context, song: LocalSong) {
-    runCatching {
-        val request = DownloadManager.Request(song.uri)
-            .setTitle(song.title)
-            .setDescription("Downloading to Music — MR. PERFECT YADAV")
-            .setMimeType("audio/mpeg")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(false)
-        val safeName = song.title
-            .replace(Regex("[^A-Za-z0-9._ -]"), "_")
-            .trim()
-            .take(90)
-            .ifBlank { "Mr_Perfect_Yadav_Track" }
-        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "$safeName.mp3")
-        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        manager.enqueue(request)
-        Toast.makeText(context, "Download started. Check your Music folder.", Toast.LENGTH_LONG).show()
-    }.onFailure {
-        Toast.makeText(context, "Download could not start: ${it.localizedMessage ?: "unknown error"}", Toast.LENGTH_LONG).show()
-    }
-}
 
 private object PlaybackBridge {
     var onPlay: (() -> Unit)? = null
@@ -725,7 +1400,7 @@ private object PlaybackBridge {
 }
 
 private object NotificationController {
-    const val CHANNEL_ID = "mr_perfect_music_playback"
+    const val CHANNEL_ID = "mr_perfect_music_playback_v2"
     private const val NOTIFICATION_ID = 701
     var sessionToken: MediaSessionCompat.Token? = null
 
@@ -737,8 +1412,13 @@ private object NotificationController {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.app_icon)
             .setContentTitle(title)
-            .setContentText("MR. PERFECT YADAV MUSIC")
-            .setSubText("Full-track player")
+            .setContentText(if (isPlaying) "NOW PLAYING  •  MR. PERFECT YADAV" else "PAUSED  •  MR. PERFECT YADAV")
+            .setSubText("MR. PERFECT YADAV MUSIC  •  PREMIUM PLAYER")
+            .setTicker("MR. PERFECT YADAV MUSIC")
+            .setColor(android.graphics.Color.rgb(155, 92, 255))
+            .setColorized(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             .setOnlyAlertOnce(true)
             .setOngoing(isPlaying)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -781,6 +1461,28 @@ class MusicActionReceiver : BroadcastReceiver() {
             "previous" -> PlaybackBridge.onPrevious?.invoke()
         }
     }
+}
+
+private fun enqueuePermittedDownload(context: Context, uri: Uri, title: String): String {
+    if (uri.scheme != "https" || uri.host.isNullOrBlank()) {
+        return "Please use a valid HTTPS direct file URL."
+    }
+    return runCatching {
+        val extension = uri.path?.substringAfterLast(".", "")?.lowercase()
+            ?.takeIf { it in setOf("mp3", "m4a", "ogg", "mp4", "webm") }
+            ?: return "URL must directly point to an MP3, M4A, OGG, MP4 or WEBM file."
+        val safeName = title.replace(Regex("[^A-Za-z0-9._ -]"), "_").take(70).ifBlank { "media-file" } + ".$extension"
+        val request = DownloadManager.Request(uri)
+            .setTitle(safeName)
+            .setDescription("MR. PERFECT YADAV Music — download only files you are authorized to use")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, safeName)
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(false)
+        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        manager.enqueue(request)
+        "Download started. Check your Downloads folder."
+    }.getOrElse { "Could not start download: ${it.message ?: "please try again"}" }
 }
 
 private fun openLink(context: android.content.Context, url: String) {
