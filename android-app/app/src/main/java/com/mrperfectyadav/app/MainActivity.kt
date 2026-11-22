@@ -408,7 +408,10 @@ fun MrPerfectApp() {
                                     val found = withContext(Dispatchers.IO) {
                                         runCatching {
                                             val safeQuery = q.replace("\\", " ").replace("\"", " ").trim()
-                                            val archiveQuery = "mediatype:audio AND (title:\"$safeQuery\" OR creator:\"$safeQuery\")"
+                                            val terms = safeQuery.split(Regex("\\s+")).filter { it.length > 1 }.take(6)
+                                            val phraseQuery = "(title:\"$safeQuery\" OR creator:\"$safeQuery\")"
+                                            val tokenQuery = terms.joinToString(" OR ") { "title:$it OR creator:$it" }
+                                            val archiveQuery = "mediatype:audio AND ($phraseQuery OR $tokenQuery)"
                                             val encoded = URLEncoder.encode(archiveQuery, "UTF-8")
                                             val searchUrl = URL("https://archive.org/advancedsearch.php?q=$encoded&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=licenseurl&rows=40&page=1&sort[]=downloads+desc&output=json")
                                             val connection = (searchUrl.openConnection() as HttpURLConnection)
@@ -460,7 +463,7 @@ fun MrPerfectApp() {
                                     }
                                     onlineSongs = found
                                     songs = (songs + found).distinctBy { it.uri }
-                                    searchMessage = if (found.isEmpty()) "No licensed full tracks found. Try another title or artist." else "Full-length Creative Commons / public-domain tracks found. Tap to stream in this app."
+                                    searchMessage = if (found.isEmpty()) "No matching licensed MP3 found. Try a shorter song name, artist name, or another spelling." else "${found.size} licensed MP3 track(s) found. Tap Play to stream."
                                     isSearching = false
                                 }
                             }) {
@@ -529,8 +532,45 @@ fun MrPerfectApp() {
                                         )
                                     }
                                 }
+                                val activeEq = equalizer
+                                if (activeEq != null) {
+                                    val bandCount = runCatching { activeEq.numberOfBands.toInt() }.getOrDefault(0)
+                                    val levelRange = runCatching { activeEq.bandLevelRange }.getOrNull()
+                                    if (levelRange != null && bandCount > 0) {
+                                        Text("Manual band controls", color = White, fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(top = 8.dp))
+                                        for (bandIndex in 0 until bandCount) {
+                                            val band = bandIndex.toShort()
+                                            val centerHz = runCatching { activeEq.getCenterFreq(band) / 1000 }.getOrDefault(0)
+                                            val currentLevel = runCatching { activeEq.getBandLevel(band).toFloat() }.getOrDefault(0f)
+                                            Column {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(if (centerHz >= 1000) "${centerHz / 1000f} kHz" else "$centerHz Hz",
+                                                        color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                                    Text("${String.format("%+.1f", currentLevel / 100f)} dB",
+                                                        color = Muted, fontSize = 11.sp)
+                                                }
+                                                Slider(
+                                                    value = currentLevel.coerceIn(levelRange[0].toFloat(), levelRange[1].toFloat()),
+                                                    onValueChange = { value ->
+                                                        runCatching {
+                                                            activeEq.setBandLevel(band, value.toInt().toShort())
+                                                            selectedEqPreset = -1
+                                                        }
+                                                    },
+                                                    valueRange = levelRange[0].toFloat()..levelRange[1].toFloat(),
+                                                    colors = SliderDefaults.colors(thumbColor = Red, activeTrackColor = Red)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                Text("Equalizer controls appear after a local song starts playing. Your phone must support Android audio effects.",
+                                    color = Muted, fontSize = 11.sp)
                             }
-                            Text("Dolby Atmos is available only on supported phones; this uses Android's built-in equalizer.", color = Muted, fontSize = 10.sp)
+                            Text("Preset and manual frequency controls use Android's built-in Equalizer. Actual effect depends on device support.",
+                                color = Muted, fontSize = 10.sp)
                             Spacer(Modifier.height(10.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Bass Boost", color = White, modifier = Modifier.weight(1f))
