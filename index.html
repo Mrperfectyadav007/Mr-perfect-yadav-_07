@@ -1,162 +1,109 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="hi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MR. PERFECT YADAV</title>
-
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090d18"><title>JARVIS AI | MR. PERFECT YADAV</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{
-  font-family:Arial,sans-serif;
-  color:white;
-  background:#050505;
-  min-height:100vh;
-  overflow-x:hidden;
-}
-body:before{
- content:"";
- position:fixed;inset:0;z-index:-1;
- background:
- radial-gradient(circle at 20% 20%,#650000 0,transparent 35%),
- radial-gradient(circle at 80% 80%,#6b3b00 0,transparent 35%),
- #050505;
- animation:glow 6s infinite alternate;
-}
-@keyframes glow{to{filter:hue-rotate(25deg)}}
-header{
- text-align:center;padding:25px 12px;
- border-bottom:1px solid #ff3030;
-}
-.logo{
- font-size:clamp(25px,6vw,42px);
- font-weight:900;color:#fff;
- text-shadow:0 0 10px red,0 0 30px red;
-}
-.tag{color:#ffbd45;margin-top:10px;letter-spacing:3px}
-.profile{
- text-align:center;padding:45px 15px 25px;
-}
-.avatar{
- width:145px;height:145px;border-radius:50%;
- border:4px solid #ff3131;
- box-shadow:0 0 25px red,0 0 50px #a00000;
- object-fit:cover;
-}
-h1{
- margin-top:22px;font-size:28px;
- color:#ffd36a;
- text-shadow:0 0 15px #ff2020;
-}
-.profile p{color:#ccc;margin-top:12px}
-.container{
- width:min(900px,92%);margin:20px auto 50px;
-}
-.card{
- background:linear-gradient(145deg,#171717,#090909);
- border:1px solid #8b2525;
- border-radius:18px;padding:23px;
- margin:18px 0;
- box-shadow:0 10px 30px #000,0 0 15px #650000;
- transition:.3s;
-}
-.card:hover{
- transform:translateY(-7px);
- box-shadow:0 0 25px #ff2424;
-}
-.card h2{color:#ffbd45;margin-bottom:15px}
-.links{
- display:grid;grid-template-columns:repeat(2,1fr);
- gap:12px;
-}
-.btn{
- display:block;text-align:center;text-decoration:none;
- padding:15px 8px;border-radius:12px;
- color:white;font-weight:bold;
- border:1px solid #ff3838;
- background:linear-gradient(120deg,#690000,#180000);
- transition:.3s;
-}
-.btn:hover{
- background:#e00000;
- box-shadow:0 0 20px red;
- transform:scale(1.04);
-}
-footer{
- text-align:center;padding:25px;color:#aaa;
- border-top:1px solid #572020;
-}
-footer span{color:#ffbd45}
-@media(max-width:480px){
- .links{grid-template-columns:1fr}
-}
-</style>
-</head>
-
+:root{color-scheme:dark;--bg:#050817;--line:rgba(116,151,255,.23);--cyan:#5cecff;--violet:#9c7bff;--pink:#ff5d9e;--muted:#aab8d6}
+*{box-sizing:border-box}html{min-height:100%;background:var(--bg)}body{margin:0;min-height:100vh;overflow-x:hidden;color:#f5f7ff;font:15px system-ui,-apple-system,Segoe UI,Arial;background:radial-gradient(ellipse at 50% -15%,#283c82 0,transparent 42%),radial-gradient(ellipse at 0% 65%,#281653 0,transparent 38%),radial-gradient(ellipse at 100% 85%,#063d57 0,transparent 35%),linear-gradient(145deg,#050817,#080d20 55%,#050817);background-attachment:fixed}
+body:before,body:after{content:"";position:fixed;pointer-events:none;z-index:0;border-radius:50%;filter:blur(70px);opacity:.22;animation:floatGlow 12s ease-in-out infinite alternate}body:before{width:260px;height:260px;left:-100px;top:22%;background:#6c4cff}body:after{width:300px;height:300px;right:-130px;bottom:5%;background:#00c8ed;animation-delay:-5s}@keyframes floatGlow{to{transform:translate(35px,-28px) scale(1.18);opacity:.38}}
+header,main{position:relative;z-index:1}header{padding:17px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;background:rgba(5,8,23,.78);backdrop-filter:blur(18px);z-index:3}.brand{font-weight:900;letter-spacing:.8px;text-shadow:0 0 18px #4a91ff66}.brand span{background:linear-gradient(90deg,var(--cyan),var(--violet),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}.status{font-size:12px;color:#8fffd0}
+main{max-width:900px;margin:22px auto;padding:0 14px 50px}.hero{text-align:center;padding:24px 10px 18px}.orb{width:112px;height:112px;border-radius:50%;margin:0 auto 18px;position:relative;display:grid;place-items:center;font-size:42px;color:#e8fbff;background:radial-gradient(circle at 35% 28%,#fff 0,#9ff7ff 5%,#3998ff 20%,#342b93 52%,#0a102d 73%);border:1px solid #9cefff;box-shadow:0 0 22px #42dfff99,0 0 65px #6b55ff77,inset 0 0 25px #fff8;animation:orbPulse 3.2s ease-in-out infinite}.orb:before,.orb:after{content:"";position:absolute;inset:-9px;border-radius:50%;border:1px solid #63eaff88;transform:rotateX(68deg);box-shadow:0 0 16px #5cecff55}.orb:after{inset:-17px;border-color:#a78bfa77;transform:rotateY(68deg)}@keyframes orbPulse{50%{box-shadow:0 0 36px #42dfffbb,0 0 85px #6b55ff99,inset 0 0 30px #fff}}
+.hero h1{margin:0;color:#f8fbff;font-size:clamp(25px,6vw,38px);letter-spacing:1.5px;text-shadow:0 0 24px #69caff88}.hero p{color:var(--muted);margin:9px 0 0}.tabs{display:flex;gap:8px;margin:18px 0;flex-wrap:wrap}.tab,button{border:1px solid var(--line);border-radius:13px;padding:11px 15px;background:rgba(20,31,59,.85);color:#eef5ff;font-weight:650;cursor:pointer;transition:.2s}.tab:hover,button:hover{border-color:#6ceaff;box-shadow:0 0 18px #45d9ff33;transform:translateY(-1px)}.tab.active,button.primary{background:linear-gradient(120deg,#176a9c,#5539a8 55%,#8b316f);border-color:#73e9ff;box-shadow:0 0 22px #467cff55}.panel{background:linear-gradient(145deg,rgba(17,28,57,.88),rgba(8,15,34,.88));border:1px solid var(--line);border-radius:22px;padding:17px;box-shadow:0 18px 55px #0007,0 0 25px #365fff12;backdrop-filter:blur(16px)}.hidden{display:none!important}label{display:block;color:var(--muted);font-size:13px;margin:12px 0 6px}input,textarea,select{width:100%;border:1px solid #33476d;border-radius:12px;background:rgba(4,10,25,.82);color:white;padding:12px;font:inherit;outline:none}input:focus,textarea:focus,select:focus{border-color:var(--cyan);box-shadow:0 0 0 3px #5cecff1c}textarea{min-height:92px;resize:vertical}.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}.small{font-size:12px;color:var(--muted);line-height:1.55}.warning{color:#ffe0a4;background:#49351644;border:1px solid #98723e;padding:10px;border-radius:12px;margin:10px 0;font-size:12px}.messages{height:min(48vh,470px);overflow:auto;display:flex;flex-direction:column;gap:10px;padding:4px 0 14px;scrollbar-color:#455c91 transparent}.msg{max-width:88%;padding:12px 14px;border-radius:16px;white-space:pre-wrap;line-height:1.55;overflow-wrap:anywhere}.user{align-self:flex-end;background:linear-gradient(135deg,#225b9a,#603c9c);border:1px solid #79cfff55}.bot{align-self:flex-start;background:rgba(29,43,72,.9);border:1px solid #526a9b66}.composer{display:flex;gap:8px;align-items:flex-end}.composer textarea{min-height:48px;max-height:120px}.composer button{white-space:nowrap}.item{padding:12px;border:1px solid var(--line);border-radius:14px;margin-top:9px;background:rgba(7,15,33,.75)}.item strong{display:block;margin-bottom:5px;color:#d8eaff}.item p{margin:0;color:#c5cfdd;white-space:pre-wrap;overflow-wrap:anywhere}.item button{margin-top:9px;padding:7px 10px;font-size:12px}.filelist{margin-top:12px}.footer{text-align:center;color:#8292b4;font-size:12px;padding:24px}@media(max-width:520px){header{padding:14px}.composer{flex-wrap:wrap}.composer button{flex:1}.msg{max-width:96%}.panel{padding:13px}.orb{width:100px;height:100px}}
+</style></head>
 <body>
-
-<header>
- <div class="logo">MR. PERFECT YADAV</div>
- <div class="tag">OFFICIAL WEBSITE</div>
-</header>
-
-<section class="profile">
- <img class="avatar"
- src="profile.jpg" alt="Mr Perfect Yadav"
- onerror="this.style.display='none'">
-
- <h1>❨ ͞ 𓆩 MR PERFECT YADAV 𓆪 ❩</h1>
- <p>Welcome To My Official World ❤️</p>
+<header><div class="brand">MR. PERFECT <span>YADAV</span> · JARVIS</div><div class="status" id="status">● Ready</div></header>
+<main>
+<section class="hero"><div class="orb">◉</div><h1>JARVIS AI ASSISTANT</h1><p>आपका AI साथी — अब Chrome में</p></section>
+<nav class="tabs"><button class="tab active" data-tab="chat">AI Assistant</button><button class="tab" data-tab="content">Content Manager</button><button class="tab" data-tab="settings">Settings</button></nav>
+<section id="chat" class="panel">
+<div class="messages" id="messages"><div class="msg bot">राधे राधे! मैं JARVIS हूँ। Settings में Gemini या OpenAI चुनकर मुझसे हिंदी या अंग्रेज़ी में बात करें।</div></div>
+<div class="composer"><textarea id="prompt" rows="1" placeholder="JARVIS से कुछ पूछें..."></textarea><button id="mic" title="Voice input">🎙️</button><button class="primary" id="send">भेजें ➤</button></div>
+<div class="small" style="margin-top:9px">🎙️ Voice input आपके Chrome/डिवाइस के speech support पर निर्भर है।</div>
 </section>
-
-<div class="container">
-
- <div class="card">
-  <h2>🤖 JARVIS AI Assistant</h2>
-  <p>Open your personal AI assistant in Chrome.</p><br>
-  <a class="btn" href="jarvis.html">Open JARVIS AI Website</a>
- </div>
-
- <div class="card">
-  <h2>👑 About Me</h2>
-  <p>
-   Welcome to my official website.
-   This is the world of MR. PERFECT YADAV.
-   Stay Connected and Keep Supporting.
-  </p>
- </div>
-
- <div class="card">
-  <h2>🚀 My Social Media</h2>
-  <div class="links">
-   <a class="btn" href="https://t.me/MR_PERFECT_YADAV">Telegram</a>
-   <a class="btn" href="https://instagram.com/mr_perfect_yadav_07">Instagram</a>
-   <a class="btn" href="https://t.me/RADHEY_RADHEY_07">My Channel</a>
-   <a class="btn" href="https://t.me/Mr_perfect_yadav_07robot">Music Bot</a>
-  </div>
- </div>
-
- <div class="card">
-  <h2>🎵 My Music Bot</h2>
-  <p>Enjoy Music with MR. PERFECT YADAV.</p>
-  <br>
-  <a class="btn" href="https://t.me/Mr_perfect_yadav_07robot">
-   Open Music Bot
-  </a>
- </div>
-
- <div class="card">
-  <h2>✨ My Special Identity</h2>
-  <p>Attitude • Passion • Technology • Music</p>
- </div>
-
-</div>
-
-<footer>
- <p>Made with ❤️ by <span>MR. PERFECT YADAV</span></p>
- <p>© 2026 All Rights Reserved</p>
-</footer>
-
-</body>
-</html>
+<section id="content" class="panel hidden">
+<h2>📚 आपका कंटेंट</h2><p class="small">यहाँ लिखे नोट्स इस ब्राउज़र में सेव होंगे और AI के सवालों के संदर्भ में भेजे जाएँगे। चुनी गई फाइलें केवल इसी डिवाइस के ब्राउज़र में सूची के रूप में रहेंगी।</p>
+<label>नोट का शीर्षक</label><input id="noteTitle" placeholder="जैसे: भारतीय संविधान">
+<label>नोट / जानकारी</label><textarea id="noteBody" placeholder="अपना टेक्स्ट यहाँ लिखें..."></textarea>
+<button class="primary" id="saveNote">नोट सेव करें</button>
+<div class="filelist"><h3>📎 फाइलें चुनें</h3><input id="files" type="file" multiple accept=".pdf,.txt,.md,.doc,.docx,image/*,video/*"><div class="small">फाइल का नाम और प्रकार इस ब्राउज़र में दिखेगा। PDF/फोटो/वीडियो का AI विश्लेषण अभी उपलब्ध नहीं है।</div><div id="fileList"></div></div>
+<h3>सेव किए गए नोट्स</h3><div id="notes"></div>
+</section>
+<section id="settings" class="panel hidden">
+<h2>⚙️ JARVIS Settings</h2><label>AI Provider</label><select id="provider"><option value="gemini">Gemini</option><option value="openai">OpenAI (ChatGPT API)</option></select><label>Cloudflare Worker URL (OpenAI के लिए)</label><input id="workerUrl" type="url" placeholder="https://your-worker.your-subdomain.workers.dev"><p class="small">OpenAI चुनने पर यहाँ अपने deployed Worker का URL डालें। URL में /chat न जोड़ें; JARVIS खुद जोड़ देगा।</p><label>Gemini API Key</label><input id="apiKey" type="password" autocomplete="off" placeholder="अपनी Gemini API Key डालें">
+<div class="row" style="margin-top:10px"><button class="primary" id="saveKey">Key सेव करें</button><button id="showKey">दिखाएँ</button></div>
+<label>Gemini Model (उपलब्ध मॉडल)</label><select id="model"><option value="gemini-3.8-flash">Gemini 3.8 Flash</option></select><button id="refreshModels" type="button" style="margin-top:8px">↻ Gemini मॉडल सूची अपडेट करें</button><p class="small" id="modelInfo">API Key सेव होने पर आपकी Key के लिए उपलब्ध text-generation मॉडल लोड होंगे।</p>
+<div class="warning">सुरक्षा: API Key इस ब्राउज़र के local storage में सेव होगी। वेबसाइट/डिवाइस तक पहुँच रखने वाला व्यक्ति इसे निकाल सकता है। इसे सार्वजनिक या साझा डिवाइस पर सेव न करें।</div>
+<div class="warning">OpenAI Key वेबसाइट में नहीं डालें। इसे Cloudflare Worker के Secret में OPENAI_API_KEY नाम से रखें। OpenAI API का बिल ChatGPT subscription से अलग होता है।</div><button class="primary" id="saveProvider">Provider Settings सेव करें</button><p class="small">Gemini ब्राउज़र से चलता है। OpenAI के लिए Cloudflare Worker proxy इस्तेमाल होगा ताकि आपकी OpenAI Key छिपी रहे।</p>
+</section>
+<div class="footer">Made with ❤️ · MR. PERFECT YADAV</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const getNotes=()=>JSON.parse(localStorage.getItem('jarvis_notes')||'[]');
+function renderNotes(){const ns=getNotes();$('notes').innerHTML=ns.length?ns.map((n,i)=>'<div class="item"><strong>'+esc(n.title)+'</strong><p>'+esc(n.body)+'</p><button data-del="'+i+'">हटाएँ</button></div>').join(''):'<p class="small">अभी कोई नोट सेव नहीं है।</p>';document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{let a=getNotes();a.splice(+b.dataset.del,1);localStorage.setItem('jarvis_notes',JSON.stringify(a));renderNotes()})}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));['chat','content','settings'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));});
+$('saveKey').onclick=()=>{localStorage.setItem('jarvis_gemini_key',$('apiKey').value.trim());localStorage.setItem('jarvis_model',$('model').value);$('status').textContent='● Gemini key saved';alert('Gemini API Key सेव हो गई।')};
+$('provider').value=localStorage.getItem('jarvis_provider')||'gemini';$('workerUrl').value=localStorage.getItem('jarvis_worker_url')||'';$('saveProvider').onclick=()=>{localStorage.setItem('jarvis_provider',$('provider').value);localStorage.setItem('jarvis_worker_url',$('workerUrl').value.trim().replace(/\/$/,''));alert('Provider Settings सेव हो गईं।')};
+$('apiKey').value=localStorage.getItem('jarvis_gemini_key')||'';const savedModel=localStorage.getItem('jarvis_model');$('model').value=(!savedModel||savedModel==='gemini-2.5-flash'||savedModel==='gemini-2.0-flash')?'gemini-3.8-flash':savedModel;localStorage.setItem('jarvis_model',$('model').value);
+async function loadGeminiModels(){const key=$('apiKey').value.trim()||localStorage.getItem('jarvis_gemini_key')||'';if(!key){$('modelInfo').textContent='पहले Gemini API Key डालकर सेव करें, फिर मॉडल सूची अपडेट करें।';return}const btn=$('refreshModels');btn.disabled=true;$('modelInfo').textContent='आपकी API Key के लिए उपलब्ध मॉडल खोजे जा रहे हैं…';try{const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+encodeURIComponent(key));const data=await res.json();if(!res.ok)throw new Error(data.error?.message||'Model list error '+res.status);const models=(data.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')&&m.name).sort((a,b)=>a.name.localeCompare(b.name));if(!models.length)throw new Error('इस API Key के लिए generateContent मॉडल नहीं मिले।');const current=$('model').value||localStorage.getItem('jarvis_model');$('model').innerHTML=models.map(m=>{const id=m.name.replace(/^models\//,'');const label=(m.displayName||id)+' ('+id+')';return '<option value="'+esc(id)+'">'+esc(label)+'</option>'}).join('');$('model').value=models.some(m=>m.name.replace(/^models\//,'')===current)?current:(models.some(m=>m.name==='models/gemini-3.8-flash')?'gemini-3.8-flash':models[0].name.replace(/^models\//,''));localStorage.setItem('jarvis_model',$('model').value);$('modelInfo').textContent=models.length+' उपलब्ध text-generation मॉडल मिले। मॉडल चुनकर “Key सेव करें” दबाएँ।'}catch(e){$('modelInfo').textContent='मॉडल सूची नहीं मिली: '+e.message+' — नीचे दिख रहे मॉडल को चुनकर भी कोशिश कर सकते हैं।'}finally{btn.disabled=false}}
+$('refreshModels').onclick=loadGeminiModels;
+$('showKey').onclick=()=> $('apiKey').type=$('apiKey').type==='password'?'text':'password';
+$('saveNote').onclick=()=>{const title=$('noteTitle').value.trim(),body=$('noteBody').value.trim();if(!body){alert('नोट लिखें।');return}let a=getNotes();a.unshift({title:title||'बिना शीर्षक',body});localStorage.setItem('jarvis_notes',JSON.stringify(a));$('noteTitle').value='';$('noteBody').value='';renderNotes()};
+$('files').onchange=()=>{const fs=[...$('files').files];$('fileList').innerHTML=fs.map(f=>'<div class="item"><strong>'+esc(f.name)+'</strong><p>'+esc(f.type||'Unknown type')+' · '+(f.size/1024).toFixed(1)+' KB</p></div>').join('')};
+function addMsg(text,who){const d=document.createElement('div');d.className='msg '+who;d.textContent=text;$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return d}
+async function send(){
+ const q=$('prompt').value.trim();
+ if(!q)return;
+ const provider=localStorage.getItem('jarvis_provider')||'gemini';
+ const notes=getNotes().map(n=>'['+n.title+'] '+n.body).join('\n').slice(0,2500);
+ const full='सहेजे नोट्स: '+(notes||'कोई नहीं')+'\nप्रश्न: '+q;
+ if(provider==='gemini'&&!localStorage.getItem('jarvis_gemini_key')){
+  alert('पहले Settings में Gemini API Key सेव करें।');
+  document.querySelector('[data-tab="settings"]').click();return;
+ }
+ if(provider==='openai'&&!localStorage.getItem('jarvis_worker_url')){
+  alert('पहले Settings में Cloudflare Worker URL सेव करें।');
+  document.querySelector('[data-tab="settings"]').click();return;
+ }
+ $('prompt').value='';
+ addMsg(q,'user');
+ const wait=addMsg('जवाब तैयार कर रहा हूँ…','bot');
+ $('send').disabled=true;$('status').textContent='● Connecting';
+ let timer;
+ try{
+  const controller=new AbortController();
+  timer=setTimeout(()=>controller.abort(),45000);
+  let answer='';
+  if(provider==='openai'){
+   const base=localStorage.getItem('jarvis_worker_url').replace(/\/$/,'');
+   const res=await fetch(base+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({message:full})});
+   let data={};try{data=await res.json()}catch{}
+   if(!res.ok)throw new Error(data.error||('Worker error '+res.status));
+   answer=data.answer||data.reply||data.message||'';
+  }else{
+   const key=localStorage.getItem('jarvis_gemini_key');
+   const model=localStorage.getItem('jarvis_model')||'gemini-3.8-flash';
+   const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent';
+   const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},signal:controller.signal,body:JSON.stringify({
+    systemInstruction:{parts:[{text:'आप JARVIS हैं। उपयोगकर्ता को स्पष्ट, सही और उपयोगी उत्तर दें। प्रश्न की भाषा में स्वाभाविक जवाब दें। केवल सोचते न रहें—सीधा उत्तर दें।'}]},
+    contents:[{role:'user',parts:[{text:full}]}],
+    generationConfig:{maxOutputTokens:1200,temperature:0.7}
+   })});
+   let data={};try{data=await res.json()}catch{}
+   if(!res.ok)throw new Error(data.error?.message||('Gemini API error '+res.status));
+   answer=(data.candidates?.[0]?.content?.parts||[]).filter(p=>p.text&&!p.thought).map(p=>p.text).join('').trim();
+   if(!answer&&data.promptFeedback?.blockReason)throw new Error('यह प्रश्न सुरक्षा कारण से रोका गया: '+data.promptFeedback.blockReason);
+  }
+  if(!answer)throw new Error('AI से खाली जवाब मिला। Settings में API Key और Model जाँचें।');
+  wait.textContent=answer;$('status').textContent='● Ready';
+ }catch(e){
+  wait.textContent=e.name==='AbortError'?'45 सेकंड में जवाब नहीं आया। नेटवर्क या API जाँचें।':'त्रुटि: '+e.message;
+  $('status').textContent='● Error';
+ }finally{clearTimeout(timer);$('send').disabled=false;}
+}
+$('send').onclick=send;$('prompt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+$('mic').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('इस Chrome में voice input उपलब्ध नहीं है।');return}const r=new SR();r.lang='hi-IN';r.onresult=e=>$('prompt').value=e.results[0][0].transcript;r.onerror=()=>alert('Voice input शुरू नहीं हो पाया।');r.start()};
+renderNotes();
+</script></body></html>
