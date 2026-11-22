@@ -58,12 +58,15 @@ import java.net.URL
 import java.net.URLEncoder
 import org.json.JSONObject
 
-private val Black = Color(0xFF080808)
-private val Panel = Color(0xFF181818)
-private val PanelLight = Color(0xFF242424)
-private val Red = Color(0xFFFF3030)
-private val White = Color(0xFFF7F7F7)
-private val Muted = Color(0xFFB8B8B8)
+private val Black = Color(0xFF070B10)
+private val Panel = Color(0xFF111923)
+private val PanelLight = Color(0xFF1B2A38)
+private val Green = Color(0xFF20D67B)
+private val Blue = Color(0xFF328BFF)
+private val Red = Color(0xFFFF4057)
+private val BrandGradient = listOf(Green, Blue, Red)
+private val White = Color(0xFFF7FAFF)
+private val Muted = Color(0xFFB8C5D3)
 
 private data class LocalSong(val uri: Uri, val title: String)
 
@@ -128,8 +131,11 @@ fun MrPerfectApp() {
     var bassBoost by remember { mutableStateOf<BassBoost?>(null) }
     var bassBoostEnabled by remember { mutableStateOf(false) }
     var autoPlayNext by remember { mutableStateOf(true) }
+    var shuffleEnabled by remember { mutableStateOf(false) }
+    var repeatCurrent by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showSettings by remember { mutableStateOf(false) }
+    var showAssistant by remember { mutableStateOf(false) }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
     val player = remember { MediaPlayer() }
@@ -187,8 +193,15 @@ fun MrPerfectApp() {
                 isPlaying = true
             }
             player.setOnCompletionListener {
-                if (autoPlayNext && currentIndex + 1 < songs.size) playTrack(currentIndex + 1)
-                else { isPlaying = false; position = 0 }
+                when {
+                    repeatCurrent && currentIndex in songs.indices -> playTrack(currentIndex)
+                    shuffleEnabled && songs.isNotEmpty() -> {
+                        val candidates = songs.indices.filter { it != currentIndex }.ifEmpty { songs.indices.toList() }
+                        playTrack(candidates.random())
+                    }
+                    autoPlayNext && currentIndex + 1 < songs.size -> playTrack(currentIndex + 1)
+                    else -> { isPlaying = false; position = 0 }
+                }
             }
             player.setOnErrorListener { _, _, _ ->
                 isPreparing = false
@@ -245,11 +258,13 @@ fun MrPerfectApp() {
     }
 
     MaterialTheme(colorScheme = darkColorScheme(
-        primary = Red, background = Black, surface = Panel,
+        primary = Blue, secondary = Green, tertiary = Red,
+        background = Black, surface = Panel,
         onPrimary = White, onBackground = White, onSurface = White
     )) {
-        BackHandler(enabled = showSettings || onlineSongs.isNotEmpty() || searchQuery.isNotBlank()) {
+        BackHandler(enabled = showAssistant || showSettings || onlineSongs.isNotEmpty() || searchQuery.isNotBlank()) {
             when {
+                showAssistant -> showAssistant = false
                 showSettings -> showSettings = false
                 onlineSongs.isNotEmpty() -> {
                     onlineSongs = emptyList()
@@ -285,7 +300,7 @@ fun MrPerfectApp() {
                 item {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("MR. PERFECT YADAV", color = Red, fontSize = 12.sp,
+                            Text("MR. PERFECT YADAV", color = Green, fontSize = 12.sp,
                                 fontWeight = FontWeight.Black, letterSpacing = 2.5.sp)
                             Text("Good music. Good mood.", color = White, fontSize = 25.sp,
                                 fontWeight = FontWeight.ExtraBold)
@@ -295,8 +310,11 @@ fun MrPerfectApp() {
                             contentDescription = "MR. PERFECT YADAV profile photo",
                             modifier = Modifier.size(54.dp).clip(CircleShape)
                         )
+                        IconButton(onClick = { showAssistant = true }) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = "AI Assistant", tint = Red)
+                        }
                         IconButton(onClick = { showSettings = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Red)
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Blue)
                         }
                     }
                 }
@@ -308,7 +326,7 @@ fun MrPerfectApp() {
                     ) {
                         Box(
                             Modifier.fillMaxSize().background(
-                                Brush.linearGradient(listOf(Color(0xFF9E1515), Color(0xFF3A0808), Color(0xFF171717)))
+                                Brush.linearGradient(listOf(Color(0xFF123D2D), Color(0xFF12365E), Color(0xFF4A1727), Color(0xFF101923)))
                             ).padding(20.dp)
                         ) {
                             Column(Modifier.align(Alignment.CenterStart)) {
@@ -340,7 +358,7 @@ fun MrPerfectApp() {
                     ) {
                         Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Verified, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.Verified, contentDescription = null, tint = Green)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Licensed music catalog", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                             }
@@ -350,7 +368,7 @@ fun MrPerfectApp() {
                             )
                             Divider(color = PanelLight)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Gavel, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.Gavel, contentDescription = null, tint = Blue)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Free legal full-length music", color = White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
@@ -359,7 +377,7 @@ fun MrPerfectApp() {
                                 color = Muted, fontSize = 12.sp
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Green)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Your phone's MP3 files", color = White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
@@ -382,8 +400,8 @@ fun MrPerfectApp() {
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = White, unfocusedTextColor = White,
-                            focusedBorderColor = Red, unfocusedBorderColor = PanelLight,
-                            focusedLabelColor = Red, cursorColor = Red
+                            focusedBorderColor = Blue, unfocusedBorderColor = PanelLight,
+                            focusedLabelColor = Green, cursorColor = Green
                         ),
                         trailingIcon = {
                             IconButton(onClick = {
@@ -394,7 +412,10 @@ fun MrPerfectApp() {
                                     val found = withContext(Dispatchers.IO) {
                                         runCatching {
                                             val safeQuery = q.replace("\\", " ").replace("\"", " ").trim()
-                                            val archiveQuery = "mediatype:audio AND licenseurl:http* AND title:\"$safeQuery\""
+                                            val terms = safeQuery.split(Regex("\\s+")).filter { it.length > 1 }.take(6)
+                                            val phraseQuery = "(title:\"$safeQuery\" OR creator:\"$safeQuery\")"
+                                            val tokenQuery = terms.joinToString(" OR ") { "title:$it OR creator:$it" }
+                                            val archiveQuery = "mediatype:audio AND ($phraseQuery OR $tokenQuery)"
                                             val encoded = URLEncoder.encode(archiveQuery, "UTF-8")
                                             val searchUrl = URL("https://archive.org/advancedsearch.php?q=$encoded&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=licenseurl&rows=40&page=1&sort[]=downloads+desc&output=json")
                                             val connection = (searchUrl.openConnection() as HttpURLConnection)
@@ -408,15 +429,19 @@ fun MrPerfectApp() {
                                                     for (i in 0 until docs.length()) {
                                                         val doc = docs.getJSONObject(i)
                                                         val identifier = doc.optString("identifier")
-                                                        val license = doc.optString("licenseurl").lowercase()
-                                                        if (identifier.isBlank() || !(license.contains("creativecommons.org") || license.contains("publicdomain"))) continue
+                                                        if (identifier.isBlank()) continue
                                                         val metadataUrl = URL("https://archive.org/metadata/${Uri.encode(identifier)}")
                                                         val metaConnection = (metadataUrl.openConnection() as HttpURLConnection)
                                                         metaConnection.connectTimeout = 10000
                                                         metaConnection.readTimeout = 12000
                                                         try {
                                                             val metaText = metaConnection.inputStream.bufferedReader().use { it.readText() }
-                                                            val files = JSONObject(metaText).optJSONArray("files") ?: continue
+                                                            val metadataRoot = JSONObject(metaText)
+                                                            val metadata = metadataRoot.optJSONObject("metadata")
+                                                            val license = (doc.optString("licenseurl").takeIf { it.isNotBlank() }
+                                                                ?: metadata?.optString("licenseurl").orEmpty()).lowercase()
+                                                            if (!(license.contains("creativecommons.org") || license.contains("publicdomain"))) continue
+                                                            val files = metadataRoot.optJSONArray("files") ?: continue
                                                             var audioFile: String? = null
                                                             for (j in 0 until files.length()) {
                                                                 val file = files.optJSONObject(j) ?: continue
@@ -442,7 +467,7 @@ fun MrPerfectApp() {
                                     }
                                     onlineSongs = found
                                     songs = (songs + found).distinctBy { it.uri }
-                                    searchMessage = if (found.isEmpty()) "No licensed full tracks found. Try another title or artist." else "Full-length Creative Commons / public-domain tracks found. Tap to stream in this app."
+                                    searchMessage = if (found.isEmpty()) "No matching licensed MP3 found. Try a shorter song name, artist name, or another spelling." else "${found.size} licensed MP3 track(s) found. Tap Play to stream."
                                     isSearching = false
                                 }
                             }) {
@@ -453,7 +478,7 @@ fun MrPerfectApp() {
                     Spacer(Modifier.height(6.dp))
                     Text(searchMessage, color = Muted, fontSize = 12.sp)
                     if (isSearching) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Red)
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Blue, trackColor = PanelLight)
                     }
                     onlineSongs.forEach { song ->
                         Row(
@@ -486,7 +511,7 @@ fun MrPerfectApp() {
                     ) {
                         Column(Modifier.fillMaxWidth().padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Equalizer, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.Equalizer, contentDescription = null, tint = Blue)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Audio Equalizer", color = White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             }
@@ -511,8 +536,45 @@ fun MrPerfectApp() {
                                         )
                                     }
                                 }
+                                val activeEq = equalizer
+                                if (activeEq != null) {
+                                    val bandCount = runCatching { activeEq.numberOfBands.toInt() }.getOrDefault(0)
+                                    val levelRange = runCatching { activeEq.bandLevelRange }.getOrNull()
+                                    if (levelRange != null && bandCount > 0) {
+                                        Text("Manual band controls", color = White, fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(top = 8.dp))
+                                        for (bandIndex in 0 until bandCount) {
+                                            val band = bandIndex.toShort()
+                                            val centerHz = runCatching { activeEq.getCenterFreq(band) / 1000 }.getOrDefault(0)
+                                            val currentLevel = runCatching { activeEq.getBandLevel(band).toFloat() }.getOrDefault(0f)
+                                            Column {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(if (centerHz >= 1000) "${centerHz / 1000f} kHz" else "$centerHz Hz",
+                                                        color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                                    Text("${String.format("%+.1f", currentLevel / 100f)} dB",
+                                                        color = Muted, fontSize = 11.sp)
+                                                }
+                                                Slider(
+                                                    value = currentLevel.coerceIn(levelRange[0].toFloat(), levelRange[1].toFloat()),
+                                                    onValueChange = { value ->
+                                                        runCatching {
+                                                            activeEq.setBandLevel(band, value.toInt().toShort())
+                                                            selectedEqPreset = -1
+                                                        }
+                                                    },
+                                                    valueRange = levelRange[0].toFloat()..levelRange[1].toFloat(),
+                                                    colors = SliderDefaults.colors(thumbColor = Red, activeTrackColor = Red)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                Text("Equalizer controls appear after a local song starts playing. Your phone must support Android audio effects.",
+                                    color = Muted, fontSize = 11.sp)
                             }
-                            Text("Dolby Atmos is available only on supported phones; this uses Android's built-in equalizer.", color = Muted, fontSize = 10.sp)
+                            Text("Preset and manual frequency controls use Android's built-in Equalizer. Actual effect depends on device support.",
+                                color = Muted, fontSize = 10.sp)
                             Spacer(Modifier.height(10.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Bass Boost", color = White, modifier = Modifier.weight(1f))
@@ -537,7 +599,7 @@ fun MrPerfectApp() {
                     item {
                         Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
                             Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.LibraryMusic, contentDescription = null, tint = Red, modifier = Modifier.size(38.dp))
+                                Icon(Icons.Default.LibraryMusic, contentDescription = null, tint = Green, modifier = Modifier.size(38.dp))
                                 Spacer(Modifier.height(8.dp))
                                 Text("No songs added yet", color = White, fontWeight = FontWeight.Bold)
                                 Text("Add MP3 files from your phone to start listening.", color = Muted,
@@ -549,14 +611,14 @@ fun MrPerfectApp() {
                     itemsIndexed(songs) { index, song ->
                         Row(
                             Modifier.fillMaxWidth().background(
-                                if (index == currentIndex) Color(0xFF351010) else Panel,
+                                if (index == currentIndex) Color(0xFF123B35) else Panel,
                                 RoundedCornerShape(14.dp)
                             ).clickable { playTrack(index) }.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(Modifier.size(44.dp).background(PanelLight, RoundedCornerShape(10.dp)),
                                 contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = Red)
+                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = Blue)
                             }
                             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                                 Text(song.title, color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
@@ -570,6 +632,7 @@ fun MrPerfectApp() {
                         }
                     }
                 }
+                item { LibraryFeaturePanel(trackTitles = songs.map { it.title }, currentIndex = currentIndex) }
                 item { Text("Connect", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                 item { SmallLinkCard("Telegram Bot", "t.me/Mr_perfect_yadav_07robot", Icons.Default.Send) {
                     openLink(context, "https://t.me/Mr_perfect_yadav_07robot")
@@ -633,6 +696,9 @@ fun MrPerfectApp() {
             }
             }
         }
+        if (showAssistant) {
+            AssistantDialog(onDismiss = { showAssistant = false })
+        }
         if (showSettings) {
             AlertDialog(
                 onDismissRequest = { showSettings = false },
@@ -643,6 +709,14 @@ fun MrPerfectApp() {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Auto-play next song", modifier = Modifier.weight(1f))
                             Switch(checked = autoPlayNext, onCheckedChange = { autoPlayNext = it })
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Shuffle playback", modifier = Modifier.weight(1f))
+                            Switch(checked = shuffleEnabled, onCheckedChange = { shuffleEnabled = it })
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Repeat current track", modifier = Modifier.weight(1f))
+                            Switch(checked = repeatCurrent, onCheckedChange = { repeatCurrent = it })
                         }
                         Text("Audio playback speed: ${String.format("%.2f", playbackSpeed)}x")
                         Slider(value = playbackSpeed, onValueChange = { speed ->
