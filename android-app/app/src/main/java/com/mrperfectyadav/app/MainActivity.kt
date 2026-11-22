@@ -16,6 +16,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.provider.OpenableColumns
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.activity.ComponentActivity
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
@@ -367,6 +370,7 @@ fun MrPerfectApp() {
                     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         Text("APP PAGES", color = White, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
                         SmallLinkCard("Music Player", "Your songs and playback controls", Icons.Default.MusicNote) { currentPage = "MUSIC" }
+                        SmallLinkCard("WEB MUSIC PLAYER", "Connect your hosted Telegram Web Player", Icons.Default.Language) { currentPage = "WEB_PLAYER" }
                         SmallLinkCard("Downloads", "Direct file downloads and status", Icons.Default.Download) { currentPage = "DOWNLOADS" }
                         SmallLinkCard("Equalizer", "Sound presets and Bass Boost", Icons.Default.Equalizer) { currentPage = "EQUALIZER" }
                         SmallLinkCard("DJ Toolkit", "DJ controls and tools", Icons.Default.GraphicEq) { currentPage = "DJ"; showDjToolkit = true }
@@ -1006,6 +1010,9 @@ fun MrPerfectApp() {
                 onBack = { currentPage = "HOME"; showAssistant = false; showDjToolkit = false; showSettings = false },
                 content = {
                     when (currentPage) {
+                        "WEB_PLAYER" -> {
+                            WebPlayerScreen(modifier = Modifier.weight(1f))
+                        }
                         "MUSIC" -> {
                             Text("Your music library", color = Muted, fontSize = 13.sp)
                             if (currentIndex in songs.indices) {
@@ -1309,6 +1316,7 @@ private fun FeaturePage(
 ) {
     val title = when (page) {
         "MUSIC" -> "MUSIC PLAYER"
+        "WEB_PLAYER" -> "WEB MUSIC PLAYER"
         "DOWNLOADS" -> "DOWNLOAD MANAGER"
         "EQUALIZER" -> "EQUALIZER"
         "DJ" -> "DJ TOOLKIT"
