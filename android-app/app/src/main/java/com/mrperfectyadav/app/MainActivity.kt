@@ -181,6 +181,13 @@ fun MrPerfectApp() {
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
     var eqBandLevels by remember { mutableStateOf(listOf<Float>()) }
+    var favoriteUris by remember { mutableStateOf(context.getSharedPreferences("music_library", 0).getStringSet("favorites", emptySet())?.toSet() ?: emptySet()) }
+    var playlistName by remember { mutableStateOf("My Playlist") }
+    var playlistUris by remember { mutableStateOf(context.getSharedPreferences("music_library", 0).getString("playlist_uris", "") ?: "") }
+    var trendingSongs by remember { mutableStateOf(listOf<LocalSong>()) }
+    var trendingLoading by remember { mutableStateOf(false) }
+    var trendingMessage by remember { mutableStateOf("Tap refresh to load today's popular preview tracks.") }
+
     val player = remember { MediaPlayer() }
 
     val picker = rememberLauncherForActivityResult(
@@ -195,6 +202,46 @@ fun MrPerfectApp() {
             LocalSong(uri, title)
         }
         songs = (songs + added).distinctBy { it.uri }
+    }
+
+    fun toggleFavorite(song: LocalSong) {
+        val next = if (song.uri.toString() in favoriteUris) favoriteUris - song.uri.toString() else favoriteUris + song.uri.toString()
+        favoriteUris = next
+        context.getSharedPreferences("music_library", 0).edit().putStringSet("favorites", next).apply()
+    }
+    fun savePlaylistSong(song: LocalSong) {
+        val next = (playlistUris.split("\\n").filter { it.isNotBlank() } + (song.uri.toString() + "|" + song.title)).distinct()
+        playlistUris = next.joinToString("\\n")
+        context.getSharedPreferences("music_library", 0).edit().putString("playlist_uris", playlistUris).apply()
+    }
+    fun loadTrending() {
+        scope.launch {
+            trendingLoading = true
+            trendingMessage = "Loading chart previews…"
+            val found = withContext(Dispatchers.IO) {
+                runCatching {
+                    val c = URL("https://itunes.apple.com/us/rss/topsongs/limit=25/json").openConnection() as HttpURLConnection
+                    c.connectTimeout = 12000; c.readTimeout = 12000
+                    try {
+                        val entries = JSONObject(c.inputStream.bufferedReader().use { it.readText() }).getJSONObject("feed").getJSONArray("entry")
+                        buildList {
+                            for (i in 0 until entries.length()) {
+                                val e = entries.getJSONObject(i)
+                                val title = e.getJSONObject("im:name").getString("label")
+                                val artist = e.getJSONObject("im:artist").getString("label")
+                                val links = e.optJSONArray("link")
+                                val preview = (0 until (links?.length() ?: 0)).mapNotNull { j -> links?.optJSONObject(j)?.optJSONObject("attributes")?.optString("href") }
+                                    .firstOrNull { it.contains("preview") || it.endsWith(".m4a") || it.endsWith(".mp3") }
+                                if (!preview.isNullOrBlank()) add(LocalSong(Uri.parse(preview), "$title — $artist"))
+                            }
+                        }
+                    } finally { c.disconnect() }
+                }.getOrDefault(emptyList())
+            }
+            trendingSongs = found
+            trendingMessage = if (found.isEmpty()) "Chart previews unavailable. Check internet and refresh." else "Top chart previews • ${found.size} tracks. Preview length and availability depend on provider."
+            trendingLoading = false
+        }
     }
 
     fun playTrack(index: Int) {
@@ -375,8 +422,8 @@ fun MrPerfectApp() {
                             HomeActionCard("Local Music", Icons.Default.MusicNote, Modifier.weight(1f)) { currentPage = "MUSIC" }
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            HomeActionCard("Favorites", Icons.Default.Favorite, Modifier.weight(1f)) { currentPage = "MUSIC" }
-                            HomeActionCard("Playlist", Icons.Default.QueueMusic, Modifier.weight(1f)) { currentPage = "MUSIC" }
+                            HomeActionCard("Favorites", Icons.Default.Favorite, Modifier.weight(1f)) { currentPage = "FAVORITES" }
+                            HomeActionCard("Playlist", Icons.Default.QueueMusic, Modifier.weight(1f)) { currentPage = "PLAYLIST" }
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { currentPage = "YOUTUBE" }, modifier = Modifier.weight(1f)) {
@@ -1045,6 +1092,52 @@ fun MrPerfectApp() {
                         }
                         "YOUTUBE" -> {
                             YouTubePage(onOpenEqualizer = { currentPage = "EQUALIZER" })
+                        }
+                        "FAVORITES" -> {
+                            Text("Your saved favorites", color = Muted)
+                            val favorites = songs.filter { it.uri.toString() in favoriteUris }
+                            if (favorites.isEmpty()) Text("No favorites yet. Add a song from your library or Trending.", color = Muted)
+                            favorites.forEach { song ->
+                                Row(Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(12.dp)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(song.title, color = White, modifier = Modifier.weight(1f))
+                                    IconButton(onClick = { val i = songs.indexOfFirst { it.uri == song.uri }; if (i >= 0) playTrack(i) }) { Icon(Icons.Default.PlayArrow, contentDescription = "Play", tint = Red) }
+                                    IconButton(onClick = { toggleFavorite(song) }) { Icon(Icons.Default.Favorite, contentDescription = "Remove favorite", tint = Red) }
+                                }
+                            }
+                        }
+                        "PLAYLIST" -> {
+                            Text("Create your playlist", color = White, fontWeight = FontWeight.Bold)
+                            OutlinedTextField(value = playlistName, onValueChange = { playlistName = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Playlist name") })
+                            if (currentIndex in songs.indices) Button(onClick = { savePlaylistSong(songs[currentIndex]) }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Add, contentDescription = null); Text(" Add current song") }
+                            else Text("Play a song first, then add it to your playlist.", color = Muted)
+                            Divider(color = PanelLight)
+                            Text("Saved tracks", color = White, fontWeight = FontWeight.Bold)
+                            val saved = playlistUris.split("\\n").filter { it.contains("|") }
+                            if (saved.isEmpty()) Text("Playlist is empty.", color = Muted)
+                            saved.forEach { line ->
+                                val p = line.split("|", limit = 2); val uri = Uri.parse(p[0]); val title = p.getOrElse(1) { "Track" }
+                                Row(Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(12.dp)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(title, color = White, modifier = Modifier.weight(1f))
+                                    IconButton(onClick = { val i = songs.indexOfFirst { it.uri == uri }; if (i >= 0) playTrack(i) else { songs = songs + LocalSong(uri, title); playTrack(songs.lastIndex) } }) { Icon(Icons.Default.PlayArrow, contentDescription = "Play", tint = Red) }
+                                }
+                            }
+                        }
+                        "TRENDING" -> {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Trending Songs", color = White, fontSize = 22.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
+                                IconButton(onClick = { loadTrending() }) { Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Red) }
+                            }
+                            Text(trendingMessage, color = Muted, fontSize = 12.sp)
+                            if (trendingLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Red)
+                            trendingSongs.forEach { song ->
+                                Row(Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(12.dp)).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(song.title, color = White, modifier = Modifier.weight(1f))
+                                    IconButton(onClick = { songs = (songs + song).distinctBy { it.uri }; playTrack(songs.indexOfFirst { it.uri == song.uri }) }) { Icon(Icons.Default.PlayCircle, contentDescription = "Play preview", tint = Red) }
+                                    IconButton(onClick = { toggleFavorite(song) }) { Icon(Icons.Default.FavoriteBorder, contentDescription = "Favorite", tint = White) }
+                                    IconButton(onClick = { savePlaylistSong(song) }) { Icon(Icons.Default.Add, contentDescription = "Add to playlist", tint = Green) }
+                                }
+                            }
+                            if (trendingSongs.isEmpty() && !trendingLoading) Button(onClick = { loadTrending() }) { Text("Load chart previews") }
                         }
                         "MUSIC" -> {
                             Text("Your music library", color = Muted, fontSize = 13.sp)
