@@ -1,0 +1,21 @@
+{
+  "name": "mr-perfect-yadav-jarvis",
+  "version": "1.0.0",
+  "description": "MR. PERFECT YADAV JARVIS desktop companion",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.mrperfectyadav.jarvis",
+    "productName": "MR PERFECT YADAV JARVIS",
+    "directories": { "output": "dist" },
+    "win": { "target": ["nsis"] },
+    "nsis": { "oneClick": true, "perMachine": false }
+  }
+}
