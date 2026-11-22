@@ -433,7 +433,7 @@ fun MrPerfectApp() {
                                                 val body = connection.inputStream.bufferedReader().use { it.readText() }
                                                 val docs = JSONObject(body).getJSONObject("response").getJSONArray("docs")
                                                 coroutineScope {
-                                                    (0 until docs.length()).map { i ->
+                                                    (0 until minOf(docs.length(), 40)).map { i ->
                                                         async {
                                                             runCatching {
                                                                 val doc = docs.getJSONObject(i)
