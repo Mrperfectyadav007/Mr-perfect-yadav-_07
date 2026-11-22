@@ -380,17 +380,25 @@ fun MrPerfectApp() {
                                 Text("My YouTube Videos", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                             }
                             Text(
-                                "Manage videos uploaded to your own channel. Open YouTube Studio, choose Content, open the video menu and use Download when YouTube makes it available.",
+                                "For videos you are allowed to save, open them in the official YouTube app and use YouTube's Download button when it is offered. Your own uploads may also be downloaded from YouTube Studio.",
                                 color = Muted, fontSize = 12.sp
                             )
                             Button(
-                                onClick = { openLink(context, "https://studio.youtube.com/") },
+                                onClick = { openLink(context, "https://www.youtube.com/") },
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Blue, contentColor = White)
+                                colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = White)
+                            ) {
+                                Icon(Icons.Default.PlayCircle, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Open YouTube — Official Download")
+                            }
+                            OutlinedButton(
+                                onClick = { openLink(context, "https://studio.youtube.com/") },
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 Icon(Icons.Default.OpenInNew, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Open YouTube Studio")
+                                Text("Open YouTube Studio — My Videos")
                             }
                         }
                     }
@@ -644,7 +652,7 @@ fun MrPerfectApp() {
                         }
                     }
                     if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 11.sp)
-                    Text("Downloads are available only for tracks hosted on the licensed Creative Commons / Public Domain catalogue. YouTube downloads are not supported.", color = Muted, fontSize = 10.sp)
+                    Text("For YouTube, use the official app's Download button when available. Direct file downloads are limited to media you own or are authorized to download.", color = Muted, fontSize = 10.sp)
                 }
                 item {
                     Card(
