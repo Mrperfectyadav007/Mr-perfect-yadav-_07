@@ -126,6 +126,9 @@ fun MrPerfectApp() {
     var isSearching by remember { mutableStateOf(false) }
     var searchMessage by remember { mutableStateOf("Search for a song, artist or album.") }
     var downloadMessage by remember { mutableStateOf("") }
+    var videoSearchQuery by remember { mutableStateOf("") }
+    var videoUrlInput by remember { mutableStateOf("") }
+    var permittedFileUrl by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     var songs by remember { mutableStateOf(listOf<LocalSong>()) }
     var currentIndex by remember { mutableIntStateOf(-1) }
@@ -389,6 +392,85 @@ fun MrPerfectApp() {
                                 Spacer(Modifier.width(8.dp))
                                 Text("Open YouTube Studio")
                             }
+                        }
+                    }
+                }
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Panel)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = Red)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Video Search & Link", color = White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                            }
+                            OutlinedTextField(
+                                value = videoSearchQuery,
+                                onValueChange = { videoSearchQuery = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                placeholder = { Text("Search YouTube videos") },
+                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = White, unfocusedTextColor = White, focusedBorderColor = Blue, unfocusedBorderColor = PanelLight)
+                            )
+                            Button(
+                                onClick = { if (videoSearchQuery.isNotBlank()) openLink(context, "https://www.youtube.com/results?search_query=" + URLEncoder.encode(videoSearchQuery, "UTF-8")) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Blue)
+                            ) {
+                                Icon(Icons.Default.Search, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Search YouTube")
+                            }
+                            OutlinedTextField(
+                                value = videoUrlInput,
+                                onValueChange = { videoUrlInput = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                placeholder = { Text("Paste YouTube video link") },
+                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = White, unfocusedTextColor = White, focusedBorderColor = Green, unfocusedBorderColor = PanelLight)
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    val parsed = runCatching { Uri.parse(videoUrlInput.trim()) }.getOrNull()
+                                    val host = parsed?.host?.lowercase().orEmpty()
+                                    if (parsed?.scheme in listOf("https", "http") && (host == "youtube.com" || host.endsWith(".youtube.com") || host == "youtu.be")) {
+                                        openLink(context, parsed.toString())
+                                    } else {
+                                        downloadMessage = "Please paste a valid YouTube link."
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.OpenInNew, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Open Video")
+                            }
+                            Divider(color = PanelLight)
+                            Text("Download files you own or are licensed to download (Archive.org direct media links only). Check the file license first.", color = Muted, fontSize = 12.sp)
+                            OutlinedTextField(
+                                value = permittedFileUrl,
+                                onValueChange = { permittedFileUrl = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                placeholder = { Text("Paste permitted Archive.org media file link") },
+                                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = White, unfocusedTextColor = White, focusedBorderColor = Green, unfocusedBorderColor = PanelLight)
+                            )
+                            Button(
+                                onClick = {
+                                    val uri = runCatching { Uri.parse(permittedFileUrl.trim()) }.getOrNull()
+                                    downloadMessage = if (uri != null) enqueuePermittedDownload(context, uri, uri.lastPathSegment ?: "media-file") else "Enter a valid media file link."
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Black)
+                            ) {
+                                Icon(Icons.Default.Download, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Download permitted file")
+                            }
+                            if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 12.sp)
                         }
                     }
                 }
@@ -1119,7 +1201,7 @@ private fun enqueuePermittedDownload(context: Context, uri: Uri, title: String):
         return "Download is allowed only for eligible catalogue tracks."
     }
     return runCatching {
-        val extension = uri.lastPathSegment?.substringAfterLast(".", "mp3")?.lowercase()?.takeIf { it in setOf("mp3", "m4a", "ogg") } ?: "mp3"
+        val extension = uri.lastPathSegment?.substringAfterLast(".", "mp3")?.lowercase()?.takeIf { it in setOf("mp3", "m4a", "ogg", "mp4", "webm") } ?: return "Link must point to an MP3, M4A, OGG, MP4 or WEBM file."
         val safeName = title.replace(Regex("[^A-Za-z0-9._ -]"), "_").take(70).ifBlank { "audio-track" } + ".$extension"
         val request = DownloadManager.Request(uri)
             .setTitle(safeName)
