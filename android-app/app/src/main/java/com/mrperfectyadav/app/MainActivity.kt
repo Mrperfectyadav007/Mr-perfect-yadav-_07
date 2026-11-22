@@ -135,6 +135,7 @@ fun MrPerfectApp() {
     var repeatCurrent by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showSettings by remember { mutableStateOf(false) }
+    var showDjToolkit by remember { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
@@ -312,6 +313,9 @@ fun MrPerfectApp() {
                         )
                         IconButton(onClick = { showAssistant = true }) {
                             Icon(Icons.Default.AutoAwesome, contentDescription = "AI Assistant", tint = Red)
+                        }
+                        IconButton(onClick = { showDjToolkit = true }) {
+                            Icon(Icons.Default.GraphicEq, contentDescription = "DJ Toolkit", tint = Green)
                         }
                         IconButton(onClick = { showSettings = true }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Blue)
@@ -738,6 +742,9 @@ fun MrPerfectApp() {
         }
         if (showAssistant) {
             AssistantDialog(onDismiss = { showAssistant = false })
+        }
+        if (showDjToolkit) {
+            DjToolkitDialog(player = player, isPlaying = isPlaying, onDismiss = { showDjToolkit = false })
         }
         if (showSettings) {
             AlertDialog(
