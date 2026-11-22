@@ -1536,65 +1536,97 @@ private fun openLink(context: android.content.Context, url: String) {
 
 @Composable
 private fun YouTubePage(onOpenEqualizer: () -> Unit) {
-    val context = LocalContext.current
+    var browser by remember { mutableStateOf<WebView?>(null) }
     var pageError by remember { mutableStateOf(false) }
+    var pageTitle by remember { mutableStateOf("YOUTUBE") }
+    var status by remember { mutableStateOf("YouTube is ready. Choose YouTube or YouTube Music below.") }
+
+    fun loadYouTube(url: String, title: String) {
+        pageTitle = title
+        pageError = false
+        status = "Opening $title…"
+        browser?.loadUrl(url)
+    }
+
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            "YouTube opens here as a separate page. Sign in only if you trust this device. Ads and playback are controlled by YouTube; this page does not remove ads.",
+            "MR. PERFECT YADAV • IN-APP VIDEO",
+            color = White,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black
+        )
+        Text(
+            "YouTube content stays inside this page. Ads, sign-in, playback and Premium features are controlled by YouTube; this app does not block ads or bypass restrictions.",
             color = Muted,
             fontSize = 11.sp
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { openLink(context, "https://www.youtube.com/") }, modifier = Modifier.weight(1f)) {
-                Text("Open in YouTube app")
-            }
-            OutlinedButton(onClick = { openLink(context, "https://music.youtube.com/") }, modifier = Modifier.weight(1f)) {
-                Text("YouTube Music")
-            }
+            Button(
+                onClick = { loadYouTube("https://m.youtube.com/", "YOUTUBE") },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = if (pageTitle == "YOUTUBE") Red else PanelLight, contentColor = White)
+            ) { Text("YOUTUBE", fontWeight = FontWeight.Bold) }
+            Button(
+                onClick = { loadYouTube("https://music.youtube.com/", "YOUTUBE MUSIC") },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = if (pageTitle == "YOUTUBE MUSIC") Red else PanelLight, contentColor = White)
+            ) { Text("YT MUSIC", fontWeight = FontWeight.Bold) }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = { browser?.reload(); status = "Refreshing page…" },
+                modifier = Modifier.weight(1f)
+            ) { Text("REFRESH") }
+            OutlinedButton(
+                onClick = { loadYouTube("https://m.youtube.com/", "YOUTUBE") },
+                modifier = Modifier.weight(1f)
+            ) { Text("HOME") }
         }
         Button(
             onClick = onOpenEqualizer,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = White)
+            colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Black)
         ) {
             Icon(Icons.Default.Equalizer, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("OPEN APP EQUALIZER")
+            Text("OPEN APP EQUALIZER", fontWeight = FontWeight.Black)
         }
         Text(
-            "Equalizer shortcut opens this app's sound controls. Whether it affects YouTube playback depends on Android and your device.",
-            color = Muted,
+            if (pageError) "Page could not load. Check your internet connection, then tap REFRESH."
+            else status,
+            color = if (pageError) Red else Muted,
             fontSize = 10.sp
         )
-        if (pageError) {
-            Text("YouTube page could not load. Check your internet connection or use the buttons above.", color = Red, fontSize = 12.sp)
-        }
         AndroidView(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxWidth().weight(1f),
             factory = { ctx ->
                 WebView(ctx).apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.mediaPlaybackRequiresUserGesture = true
+                    settings.loadsImagesAutomatically = true
                     webViewClient = object : WebViewClient() {
                         override fun onReceivedError(
                             view: WebView,
                             request: android.webkit.WebResourceRequest,
                             error: android.webkit.WebResourceError
                         ) {
-                            if (request.isForMainFrame) pageError = true
+                            if (request.isForMainFrame) {
+                                pageError = true
+                                status = "YouTube page failed to load."
+                            }
                         }
                         override fun onPageFinished(view: WebView, url: String) {
                             pageError = false
+                            status = "Loaded: $pageTitle"
                         }
                     }
                     webChromeClient = WebChromeClient()
+                    browser = this
                     loadUrl("https://m.youtube.com/")
                 }
             },
-            update = { view ->
-                if (view.url.isNullOrBlank()) view.loadUrl("https://m.youtube.com/")
-            }
+            update = { view -> browser = view }
         )
     }
 }
