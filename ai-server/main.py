@@ -14,6 +14,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+ENABLE_STANDALONE_TELEGRAM_BOT = os.getenv("ENABLE_STANDALONE_TELEGRAM_BOT", "false").lower() == "true"
 SYSTEM_PROMPT = (
     "You are MR. PERFECT YADAV AI, a helpful, accurate Hindi-first personal assistant. "
     "Reply naturally in the language used by the user, preferably clear Hindi. "
@@ -83,7 +84,7 @@ async def telegram_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global telegram_app
-    if TELEGRAM_BOT_TOKEN:
+    if ENABLE_STANDALONE_TELEGRAM_BOT and TELEGRAM_BOT_TOKEN:
         telegram_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
         telegram_app.add_handler(CommandHandler("start", start_command))
         telegram_app.add_handler(CommandHandler("help", help_command))
