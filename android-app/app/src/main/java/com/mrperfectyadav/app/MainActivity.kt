@@ -132,6 +132,7 @@ fun MrPerfectApp() {
     var repeatCurrent by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var showSettings by remember { mutableStateOf(false) }
+    var showAssistant by remember { mutableStateOf(false) }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
     val player = remember { MediaPlayer() }
@@ -257,8 +258,9 @@ fun MrPerfectApp() {
         primary = Red, background = Black, surface = Panel,
         onPrimary = White, onBackground = White, onSurface = White
     )) {
-        BackHandler(enabled = showSettings || onlineSongs.isNotEmpty() || searchQuery.isNotBlank()) {
+        BackHandler(enabled = showAssistant || showSettings || onlineSongs.isNotEmpty() || searchQuery.isNotBlank()) {
             when {
+                showAssistant -> showAssistant = false
                 showSettings -> showSettings = false
                 onlineSongs.isNotEmpty() -> {
                     onlineSongs = emptyList()
@@ -304,6 +306,9 @@ fun MrPerfectApp() {
                             contentDescription = "MR. PERFECT YADAV profile photo",
                             modifier = Modifier.size(54.dp).clip(CircleShape)
                         )
+                        IconButton(onClick = { showAssistant = true }) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = "AI Assistant", tint = Red)
+                        }
                         IconButton(onClick = { showSettings = true }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Red)
                         }
@@ -642,6 +647,9 @@ fun MrPerfectApp() {
                 }
             }
             }
+        }
+        if (showAssistant) {
+            AssistantDialog(onDismiss = { showAssistant = false })
         }
         if (showSettings) {
             AlertDialog(
