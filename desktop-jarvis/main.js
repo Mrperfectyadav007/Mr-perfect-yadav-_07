@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, shell, session } = require("electron");
+const { app, BrowserWindow, Tray, Menu, shell, session, nativeImage } = require("electron");
 const path = require("path");
 const JARVIS_URL = "https://jarvis99-lake.vercel.app";
 let win, tray;
@@ -20,7 +20,7 @@ app.whenReady().then(() => {
   });
   createWindow();
   // Tray icon uses Electron's built-in empty image fallback until a branded .ico is added.
-  tray = new Tray(process.platform === "win32" ? path.join(__dirname, "tray.ico") : path.join(__dirname, "tray.png"));
+  tray = new Tray(nativeImage.createFromDataURL("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABCElEQVR4nM2XMQ7CMAxFXQQRKzCAUO7FSRBCSAzchBEhBpZ2iTgIM0OrHiJMlcBNUqdx2vy1tf+TnThJNpuvNYyoyZjmAADTPkG7T2n9dpMbr1wZtQUu0xAYEgA2dyX2+bcT4DeZb2mp8dZFGGqO42wtNAJwmFMhnNsw1JySpwXQUHKZYwhchT8AqnldvtkgRp+E6QDE6j0WbkM6FejSSz2jAJBPw9VyAVJuQQgBVVUPD3A8XeBxv4LWGvaH8/AAeaEgLxSbcaN0FqFtVHILb/d0KpAEQOw2mKZtqwKxIGyj3tkCLghXHiMA5S7Xx9x00FkrwAFBuVum/S5wJaaI7WXkAxPtbRhLX9plfbCmjFIdAAAAAElFTkSuQmCC"));
   tray.setToolTip("MR. PERFECT YADAV JARVIS");
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "Open JARVIS", click: () => { win.show(); win.focus(); } },
