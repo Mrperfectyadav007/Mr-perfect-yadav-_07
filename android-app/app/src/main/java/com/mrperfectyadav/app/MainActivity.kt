@@ -16,6 +16,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.provider.OpenableColumns
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebChromeClient
 import androidx.activity.ComponentActivity
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
@@ -46,6 +49,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -128,6 +132,8 @@ fun MrPerfectApp() {
     var downloadMessage by remember { mutableStateOf("") }
     var videoSearchQuery by remember { mutableStateOf("") }
     var youtubeMusicQuery by remember { mutableStateOf("") }
+    var showYoutubeMusic by remember { mutableStateOf(false) }
+    var youtubeMusicWebView by remember { mutableStateOf<WebView?>(null) }
     var videoUrlInput by remember { mutableStateOf("") }
     var permittedFileUrl by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
@@ -396,30 +402,21 @@ fun MrPerfectApp() {
                                 )
                             )
                             Button(
-                                onClick = {
-                                    val q = URLEncoder.encode(youtubeMusicQuery.trim(), "UTF-8")
-                                    val target = if (q.isBlank()) "https://music.youtube.com/" else "https://music.youtube.com/search?q=$q"
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
-                                        setPackage("com.google.android.apps.youtube.music")
-                                    }
-                                    runCatching { context.startActivity(intent) }.onFailure {
-                                        openLink(context, target)
-                                    }
-                                },
+                                onClick = { showYoutubeMusic = true },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = White)
                             ) {
                                 Icon(Icons.Default.PlayCircle, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Search & Open YouTube Music")
+                                Text("Search & Open Inside App")
                             }
                             OutlinedButton(
-                                onClick = { openLink(context, "https://music.youtube.com/") },
+                                onClick = { youtubeMusicQuery = ""; showYoutubeMusic = true },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(Icons.Default.OpenInNew, contentDescription = null)
+                                Icon(Icons.Default.MusicVideo, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Open YouTube Music")
+                                Text("Open YouTube Music Inside App")
                             }
                         }
                     }
@@ -961,6 +958,55 @@ fun MrPerfectApp() {
                     }
                 }
             }
+            }
+        }
+        BackHandler(enabled = showYoutubeMusic) {
+            showYoutubeMusic = false
+        }
+        if (showYoutubeMusic) {
+            DisposableEffect(Unit) {
+                onDispose {
+                    runCatching { youtubeMusicWebView?.stopLoading() }
+                    runCatching { youtubeMusicWebView?.destroy() }
+                    youtubeMusicWebView = null
+                }
+            }
+            Column(
+                Modifier.fillMaxSize().background(Black)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().background(Panel).padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { showYoutubeMusic = false }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = White)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("YouTube Music", color = White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("Inside MR. PERFECT YADAV", color = Muted, fontSize = 10.sp)
+                    }
+                    IconButton(onClick = { youtubeMusicWebView?.reload() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Green)
+                    }
+                }
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        WebView(ctx).apply {
+                            youtubeMusicWebView = this
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.mediaPlaybackRequiresUserGesture = true
+                            settings.loadsImagesAutomatically = true
+                            webViewClient = WebViewClient()
+                            webChromeClient = WebChromeClient()
+                            val q = URLEncoder.encode(youtubeMusicQuery.trim(), "UTF-8")
+                            val target = if (q.isBlank()) "https://music.youtube.com/" else "https://music.youtube.com/search?q=$q"
+                            loadUrl(target)
+                        }
+                    },
+                    update = { webView -> youtubeMusicWebView = webView }
+                )
             }
         }
         BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
