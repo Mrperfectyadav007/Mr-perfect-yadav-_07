@@ -650,47 +650,87 @@ fun MrPerfectApp() {
             }
 
             if (currentIndex in songs.indices) {
-                Column(Modifier.fillMaxWidth().background(Color(0xFF202020)).padding(horizontal = 14.dp, vertical = 8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.MusicNote, contentDescription = null, tint = Red, modifier = Modifier.size(30.dp))
-                        Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                            Text(songs[currentIndex].title, color = White, fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (isPreparing) "Loading..." else "MR. PERFECT YADAV MUSIC",
-                                color = Muted, fontSize = 10.sp)
-                        }
-                        IconButton(onClick = { if (currentIndex > 0) playTrack(currentIndex - 1) }) {
-                            Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = White)
-                        }
-                        IconButton(onClick = {
-                            if (isPreparing) return@IconButton
-                            if (isPlaying) {
-                                runCatching { player.pause() }
-                                isPlaying = false
-                            } else {
-                                runCatching {
-                                    if (duration > 0) player.start()
-                                    else playTrack(currentIndex)
-                                }
-                                isPlaying = true
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Panel),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .background(Brush.linearGradient(listOf(Color(0xFF142C2B), Color(0xFF142943), Color(0xFF251B2A))))
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(42.dp).clip(RoundedCornerShape(13.dp))
+                                    .background(Brush.linearGradient(listOf(Green, Blue))),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = White,
+                                    modifier = Modifier.size(24.dp))
                             }
-                        }) {
-                            Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = "Play pause", tint = Red, modifier = Modifier.size(30.dp))
+                            Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                                Text(songs[currentIndex].title, color = White, fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(if (isPreparing) "Loading..." else "MR. PERFECT YADAV • NOW PLAYING",
+                                    color = Muted, fontSize = 9.sp, letterSpacing = 0.7.sp)
+                            }
+                            Text(if (isPlaying) "PLAYING" else if (isPreparing) "LOADING" else "PAUSED",
+                                color = if (isPlaying) Green else Blue, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                         }
-                        IconButton(onClick = { if (currentIndex + 1 < songs.size) playTrack(currentIndex + 1) }) {
-                            Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = White)
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PremiumPlaybackButton(
+                                icon = Icons.Default.SkipPrevious, description = "Previous song",
+                                size = 46.dp, colors = listOf(Blue, Color(0xFF2455A8)),
+                                enabled = currentIndex > 0,
+                                onClick = { if (currentIndex > 0) playTrack(currentIndex - 1) }
+                            )
+                            Spacer(Modifier.width(22.dp))
+                            PremiumPlaybackButton(
+                                icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                description = if (isPlaying) "Pause" else "Play",
+                                size = 58.dp, colors = listOf(Green, Blue),
+                                enabled = !isPreparing,
+                                onClick = {
+                                    if (isPreparing) return@PremiumPlaybackButton
+                                    if (isPlaying) {
+                                        runCatching { player.pause() }
+                                        isPlaying = false
+                                    } else {
+                                        runCatching {
+                                            if (duration > 0) player.start()
+                                            else playTrack(currentIndex)
+                                        }
+                                        isPlaying = true
+                                    }
+                                }
+                            )
+                            Spacer(Modifier.width(22.dp))
+                            PremiumPlaybackButton(
+                                icon = Icons.Default.SkipNext, description = "Next song",
+                                size = 46.dp, colors = listOf(Red, Color(0xFFB62949)),
+                                enabled = currentIndex + 1 < songs.size,
+                                onClick = { if (currentIndex + 1 < songs.size) playTrack(currentIndex + 1) }
+                            )
                         }
-                    }
-                    if (duration > 0) {
-                        Slider(
-                            value = position.coerceIn(0, duration).toFloat(),
-                            onValueChange = { position = it.toInt() },
-                            onValueChangeFinished = { runCatching { player.seekTo(position) } },
-                            valueRange = 0f..duration.toFloat(),
-                            modifier = Modifier.height(22.dp),
-                            colors = SliderDefaults.colors(thumbColor = Red, activeTrackColor = Red)
-                        )
+                        if (duration > 0) {
+                            Spacer(Modifier.height(8.dp))
+                            Slider(
+                                value = position.coerceIn(0, duration).toFloat(),
+                                onValueChange = { position = it.toInt() },
+                                onValueChangeFinished = { runCatching { player.seekTo(position) } },
+                                valueRange = 0f..duration.toFloat(),
+                                modifier = Modifier.height(24.dp),
+                                colors = SliderDefaults.colors(thumbColor = Green, activeTrackColor = Blue,
+                                    inactiveTrackColor = PanelLight)
+                            )
+                        }
                     }
                 }
             }
@@ -738,6 +778,31 @@ fun MrPerfectApp() {
                 textContentColor = White
             )
         }
+    }
+}
+
+
+@Composable
+private fun PremiumPlaybackButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    size: androidx.compose.ui.unit.Dp,
+    colors: List<Color>,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier.size(size).clip(CircleShape)
+            .background(Brush.linearGradient(colors))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = if (enabled) White else White.copy(alpha = 0.35f),
+            modifier = Modifier.size(if (size >= 56.dp) 31.dp else 25.dp)
+        )
     }
 }
 
