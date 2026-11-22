@@ -18,6 +18,7 @@ import android.app.PendingIntent
 import android.provider.OpenableColumns
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebChromeClient
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.activity.ComponentActivity
 import androidx.core.app.NotificationCompat
@@ -371,6 +372,7 @@ fun MrPerfectApp() {
                         Text("APP PAGES", color = White, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
                         SmallLinkCard("Music Player", "Your songs and playback controls", Icons.Default.MusicNote) { currentPage = "MUSIC" }
                         SmallLinkCard("WEB MUSIC PLAYER", "Connect your hosted Telegram Web Player", Icons.Default.Language) { currentPage = "WEB_PLAYER" }
+                        SmallLinkCard("YouTube", "Open YouTube separately inside this app", Icons.Default.PlayCircle) { currentPage = "YOUTUBE" }
                         SmallLinkCard("Downloads", "Direct file downloads and status", Icons.Default.Download) { currentPage = "DOWNLOADS" }
                         SmallLinkCard("Equalizer", "Sound presets and Bass Boost", Icons.Default.Equalizer) { currentPage = "EQUALIZER" }
                         SmallLinkCard("DJ Toolkit", "DJ controls and tools", Icons.Default.GraphicEq) { currentPage = "DJ"; showDjToolkit = true }
@@ -1037,6 +1039,9 @@ fun MrPerfectApp() {
                         "WEB_PLAYER" -> {
                             WebPlayerScreen(modifier = Modifier.weight(1f))
                         }
+                        "YOUTUBE" -> {
+                            YouTubePage()
+                        }
                         "MUSIC" -> {
                             Text("Your music library", color = Muted, fontSize = 13.sp)
                             if (currentIndex in songs.indices) {
@@ -1355,6 +1360,7 @@ private fun FeaturePage(
     val title = when (page) {
         "MUSIC" -> "MUSIC PLAYER"
         "WEB_PLAYER" -> "WEB MUSIC PLAYER"
+        "YOUTUBE" -> "YOUTUBE"
         "DOWNLOADS" -> "DOWNLOAD MANAGER"
         "EQUALIZER" -> "EQUALIZER"
         "DJ" -> "DJ TOOLKIT"
@@ -1525,4 +1531,56 @@ private fun enqueuePermittedDownload(context: Context, uri: Uri, title: String):
 
 private fun openLink(context: android.content.Context, url: String) {
     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+}
+
+
+@Composable
+private fun YouTubePage() {
+    val context = LocalContext.current
+    var pageError by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "YouTube opens here as a separate page. Sign in only if you trust this device. Ads and playback are controlled by YouTube; this page does not remove ads.",
+            color = Muted,
+            fontSize = 11.sp
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { openLink(context, "https://www.youtube.com/") }, modifier = Modifier.weight(1f)) {
+                Text("Open in YouTube app")
+            }
+            OutlinedButton(onClick = { openLink(context, "https://music.youtube.com/") }, modifier = Modifier.weight(1f)) {
+                Text("YouTube Music")
+            }
+        }
+        if (pageError) {
+            Text("YouTube page could not load. Check your internet connection or use the buttons above.", color = Red, fontSize = 12.sp)
+        }
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx ->
+                WebView(ctx).apply {
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.mediaPlaybackRequiresUserGesture = true
+                    webViewClient = object : WebViewClient() {
+                        override fun onReceivedError(
+                            view: WebView,
+                            request: android.webkit.WebResourceRequest,
+                            error: android.webkit.WebResourceError
+                        ) {
+                            if (request.isForMainFrame) pageError = true
+                        }
+                        override fun onPageFinished(view: WebView, url: String) {
+                            pageError = false
+                        }
+                    }
+                    webChromeClient = WebChromeClient()
+                    loadUrl("https://m.youtube.com/")
+                }
+            },
+            update = { view ->
+                if (view.url.isNullOrBlank()) view.loadUrl("https://m.youtube.com/")
+            }
+        )
+    }
 }
