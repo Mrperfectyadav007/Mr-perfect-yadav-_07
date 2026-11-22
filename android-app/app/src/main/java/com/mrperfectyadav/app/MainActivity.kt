@@ -10,6 +10,8 @@ import android.media.audiofx.BassBoost
 import android.net.Uri
 import android.os.Bundle
 import android.os.Build
+import android.os.Environment
+import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -123,6 +125,7 @@ fun MrPerfectApp() {
     var onlineSongs by remember { mutableStateOf(listOf<LocalSong>()) }
     var isSearching by remember { mutableStateOf(false) }
     var searchMessage by remember { mutableStateOf("Search for a song, artist or album.") }
+    var downloadMessage by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     var songs by remember { mutableStateOf(listOf<LocalSong>()) }
     var currentIndex by remember { mutableIntStateOf(-1) }
@@ -523,10 +526,15 @@ fun MrPerfectApp() {
                             }) {
                                 Icon(Icons.Default.PlayCircle, contentDescription = "Play full track", tint = Red)
                             }
-
+                            IconButton(onClick = {
+                                downloadMessage = enqueuePermittedDownload(context, song.uri, song.title)
+                            }) {
+                                Icon(Icons.Default.Download, contentDescription = "Download permitted track", tint = Green)
+                            }
                         }
                     }
-                    Text("Play full-length tracks. Offline song downloading is not available in this app.", color = Muted, fontSize = 10.sp)
+                    if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 11.sp)
+                    Text("Downloads are available only for tracks hosted on the licensed Creative Commons / Public Domain catalogue. YouTube downloads are not supported.", color = Muted, fontSize = 10.sp)
                 }
                 item {
                     Card(
@@ -847,6 +855,16 @@ fun MrPerfectApp() {
                         }
                     }
                     Spacer(Modifier.weight(1f))
+                    if (songs[currentIndex].uri.host?.endsWith("archive.org") == true) {
+                        OutlinedButton(onClick = {
+                            downloadMessage = enqueuePermittedDownload(context, songs[currentIndex].uri, songs[currentIndex].title)
+                        }) {
+                            Icon(Icons.Default.Download, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Download permitted track")
+                        }
+                        if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 11.sp)
+                    }
                     Text(if (isPreparing) "LOADING TRACK…" else if (isPlaying) "NOW PLAYING" else "PAUSED",
                         color = if (isPlaying) Green else Blue, fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
@@ -1066,6 +1084,25 @@ class MusicActionReceiver : BroadcastReceiver() {
             "previous" -> PlaybackBridge.onPrevious?.invoke()
         }
     }
+}
+
+private fun enqueuePermittedDownload(context: Context, uri: Uri, title: String): String {
+    if (uri.scheme != "https" || uri.host?.endsWith("archive.org") != true) {
+        return "Download is allowed only for eligible catalogue tracks."
+    }
+    return runCatching {
+        val safeName = title.replace(Regex("[^A-Za-z0-9._ -]"), "_").take(70).ifBlank { "audio-track" } + ".mp3"
+        val request = DownloadManager.Request(uri)
+            .setTitle(safeName)
+            .setDescription("MR. PERFECT YADAV Music — check the track license before reuse")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, safeName)
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(false)
+        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        manager.enqueue(request)
+        "Download started. Check your Downloads folder."
+    }.getOrElse { "Could not start download: ${it.message ?: "please try again"}" }
 }
 
 private fun openLink(context: android.content.Context, url: String) {
