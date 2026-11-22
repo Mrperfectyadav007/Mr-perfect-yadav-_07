@@ -2,6 +2,9 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+dependencies {
+    implementation("androidx.core:core-ktx:1.15.0")
+}
 android {
     namespace = "com.mrperfectyadav.jarvis"
     compileSdk = 35
