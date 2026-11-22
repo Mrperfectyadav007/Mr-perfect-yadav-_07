@@ -205,7 +205,8 @@ fun MrPerfectApp() {
     }
 
     fun toggleFavorite(song: LocalSong) {
-        val next = if (song.uri.toString() in favoriteUris) favoriteUris - song.uri.toString() else favoriteUris + song.uri.toString()
+        val entry = song.uri.toString() + "|" + song.title
+        val next = if (favoriteUris.any { it.startsWith(song.uri.toString() + "|") }) favoriteUris.filterNot { it.startsWith(song.uri.toString() + "|") }.toSet() else favoriteUris + entry
         favoriteUris = next
         context.getSharedPreferences("music_library", 0).edit().putStringSet("favorites", next).apply()
     }
@@ -1095,8 +1096,8 @@ fun MrPerfectApp() {
                         }
                         "FAVORITES" -> {
                             Text("Your saved favorites", color = Muted)
-                            val favorites = songs.filter { it.uri.toString() in favoriteUris }
-                            if (favorites.isEmpty()) Text("No favorites yet. Add a song from your library or Trending.", color = Muted)
+                            val favorites = favoriteUris.mapNotNull { entry -> val p = entry.split("|", limit = 2); if (p.size == 2) LocalSong(Uri.parse(p[0]), p[1]) else null }
+                            if (favorites.isEmpty()) Text("No favorites yet. Tap the heart beside a song to save it.", color = Muted)
                             favorites.forEach { song ->
                                 Row(Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(12.dp)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text(song.title, color = White, modifier = Modifier.weight(1f))
@@ -1151,7 +1152,10 @@ fun MrPerfectApp() {
                             Button(onClick = { picker.launch(arrayOf("audio/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Add songs from phone") }
                             if (songs.isEmpty()) Text("No songs added yet. Add MP3 files from your phone.", color = Muted)
                             songs.forEachIndexed { index, song ->
-                                SmallLinkCard(song.title, if (index == currentIndex) "Now playing" else "Tap to play", Icons.Default.MusicNote) { playTrack(index) }
+                                Row(Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f).clickable { playTrack(index) }.padding(8.dp)) { Text(song.title, color = White); Text(if (index == currentIndex) "Now playing" else "Tap to play", color = Muted, fontSize = 11.sp) }
+                                    IconButton(onClick = { toggleFavorite(song) }) { Icon(if (favoriteUris.any { it.startsWith(song.uri.toString() + "|") }) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = "Favorite", tint = Red) }
+                                }
                             }
                         }
                         "DOWNLOADS" -> {
