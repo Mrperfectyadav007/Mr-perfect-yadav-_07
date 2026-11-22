@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <application
         android:allowBackup="true"
-        android:label="MR. PERFECT YADAV"
+        android:label="MR. PERFECT YADAV PREMIUM"
         android:icon="@drawable/app_icon"
         android:roundIcon="@drawable/app_icon"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
