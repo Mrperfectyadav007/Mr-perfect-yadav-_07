@@ -176,6 +176,7 @@ fun MrPerfectApp() {
     var currentPage by remember { mutableStateOf("HOME") }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
+    var eqBandLevels by remember { mutableStateOf(listOf<Float>()) }
     val player = remember { MediaPlayer() }
 
     val picker = rememberLauncherForActivityResult(
@@ -221,10 +222,12 @@ fun MrPerfectApp() {
                     equalizer = effect
                     eqPresetNames = (0 until effect.numberOfPresets.toInt()).map { effect.getPresetName(it.toShort()).toString() }
                     selectedEqPreset = -1
+                    eqBandLevels = (0 until effect.numberOfBands.toInt()).map { effect.getBandLevel(it.toShort()).toFloat() }
                 }.onFailure {
                     equalizer = null
                     eqPresetNames = emptyList()
                     selectedEqPreset = -1
+                    eqBandLevels = emptyList()
                 }
                 isPreparing = false
                 mp.start()
@@ -1030,18 +1033,123 @@ fun MrPerfectApp() {
                             Text("YouTube links open in YouTube; this app does not extract YouTube streams into MP3/MP4.", color = Muted, fontSize = 11.sp)
                         }
                         "EQUALIZER" -> {
-                            Text("Play a song first to activate the phone's audio effects.", color = Muted, fontSize = 12.sp)
-                            if (eqPresetNames.isEmpty()) Text("No equalizer presets are currently available.", color = Muted)
-                            eqPresetNames.forEachIndexed { index, preset ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(preset, color = White, modifier = Modifier.weight(1f))
-                                    RadioButton(selected = selectedEqPreset == index, onClick = { runCatching { equalizer?.usePreset(index.toShort()); selectedEqPreset = index } })
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(26.dp),
+                                colors = CardDefaults.cardColors(containerColor = Panel),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().background(
+                                        Brush.linearGradient(listOf(Color(0xFF153C35), Color(0xFF142E50), Color(0xFF321C48)))
+                                    ).padding(18.dp),
+                                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(Green, Blue, Purple))),
+                                            contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Default.Equalizer, contentDescription = null, tint = White, modifier = Modifier.size(28.dp))
+                                        }
+                                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                            Text("STUDIO SOUND ENGINE", color = Green, fontSize = 10.sp, letterSpacing = 1.8.sp)
+                                            Text("Premium Equalizer", color = White, fontSize = 21.sp, fontWeight = FontWeight.Black)
+                                        }
+                                        Text("PRO", color = White, fontSize = 11.sp,
+                                            modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Purple, Red))).padding(horizontal = 11.dp, vertical = 6.dp))
+                                    }
+                                    Text(if (currentIndex in songs.indices) "NOW TUNING • ${songs[currentIndex].title}" else "Play a local song to unlock live sound controls.",
+                                        color = Muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("SOUND PRESETS", color = White, fontSize = 12.sp, letterSpacing = 1.2.sp)
+                                    if (eqPresetNames.isEmpty()) {
+                                        Text("No presets available yet. Start a song and check your device audio-effect support.", color = Muted, fontSize = 12.sp)
+                                    } else {
+                                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                                            eqPresetNames.forEachIndexed { index, preset ->
+                                                FilterChip(
+                                                    selected = selectedEqPreset == index,
+                                                    onClick = {
+                                                        runCatching {
+                                                            equalizer?.usePreset(index.toShort())
+                                                            selectedEqPreset = index
+                                                            eqBandLevels = (0 until (equalizer?.numberOfBands?.toInt() ?: 0)).map { equalizer?.getBandLevel(it.toShort())?.toFloat() ?: 0f }
+                                                        }
+                                                    },
+                                                    label = { Text(preset, fontWeight = FontWeight.Bold) },
+                                                    modifier = Modifier.padding(end = 7.dp),
+                                                    colors = FilterChipDefaults.filterChipColors(
+                                                        selectedContainerColor = Purple, selectedLabelColor = White,
+                                                        containerColor = PanelLight, labelColor = White
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Divider(color = White.copy(alpha = .14f))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("MANUAL 5-BAND / DEVICE EQ", color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                        Text("LIVE", color = Green, fontSize = 10.sp)
+                                    }
+                                    val activeEq = equalizer
+                                    val range = runCatching { activeEq?.bandLevelRange }.getOrNull()
+                                    if (activeEq != null && range != null && eqBandLevels.isNotEmpty()) {
+                                        eqBandLevels.forEachIndexed { index, level ->
+                                            val hz = runCatching { activeEq.getCenterFreq(index.toShort()) / 1000 }.getOrDefault(0)
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(if (hz >= 1000) "${hz / 1000f} kHz" else "${hz} Hz",
+                                                        color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                                    Text(String.format("%+.1f dB", level / 100f), color = Green, fontSize = 11.sp)
+                                                }
+                                                Slider(
+                                                    value = level.coerceIn(range[0].toFloat(), range[1].toFloat()),
+                                                    onValueChange = { value ->
+                                                        runCatching {
+                                                            activeEq.setBandLevel(index.toShort(), value.toInt().toShort())
+                                                            eqBandLevels = eqBandLevels.toMutableList().also { it[index] = value }
+                                                            selectedEqPreset = -1
+                                                        }
+                                                    },
+                                                    valueRange = range[0].toFloat()..range[1].toFloat(),
+                                                    colors = SliderDefaults.colors(thumbColor = Purple, activeTrackColor = Green, inactiveTrackColor = PanelLight)
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        Text("Manual frequency sliders will appear when a track is playing.", color = Muted, fontSize = 11.sp)
+                                    }
+                                    Divider(color = White.copy(alpha = .14f))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("BASS BOOST", color = White, fontSize = 13.sp)
+                                            Text("Deeper low-end punch", color = Muted, fontSize = 10.sp)
+                                        }
+                                        Switch(checked = bassBoostEnabled, onCheckedChange = { enabled ->
+                                            bassBoostEnabled = enabled
+                                            runCatching { bassBoost?.enabled = enabled }
+                                        }, colors = SwitchDefaults.colors(checkedThumbColor = White, checkedTrackColor = Green))
+                                    }
+                                    Button(
+                                        onClick = {
+                                            runCatching {
+                                                equalizer?.let { eq ->
+                                                    eq.usePreset(0)
+                                                    selectedEqPreset = 0
+                                                    eqBandLevels = (0 until eq.numberOfBands.toInt()).map { eq.getBandLevel(it.toShort()).toFloat() }
+                                                }
+                                                bassBoostEnabled = false
+                                                bassBoost?.enabled = false
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(containerColor = White, contentColor = Black)
+                                    ) {
+                                        Icon(Icons.Default.RestartAlt, contentDescription = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("RESET SOUND")
+                                    }
                                 }
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Bass Boost", color = White, modifier = Modifier.weight(1f))
-                                Switch(checked = bassBoostEnabled, onCheckedChange = { bassBoostEnabled = it; runCatching { bassBoost?.enabled = it } })
-                            }
+                            Text("Equalizer capability and sound output depend on your Android phone and audio hardware.", color = Muted, fontSize = 10.sp)
                         }
                         "STUDIO" -> {
                             Text("STUDIO MASTER", color = Green, fontSize = 22.sp, fontWeight = FontWeight.Black)
