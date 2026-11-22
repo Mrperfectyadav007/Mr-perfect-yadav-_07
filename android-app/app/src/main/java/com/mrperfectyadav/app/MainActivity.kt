@@ -140,6 +140,9 @@ fun MrPerfectApp() {
     var showSettings by remember { mutableStateOf(false) }
     var showNowPlaying by remember { mutableStateOf(false) }
     var showDjToolkit by remember { mutableStateOf(false) }
+    var updateMessage by remember { mutableStateOf("Check whether a newer APK is available.") }
+    var updateUrl by remember { mutableStateOf<String?>(null) }
+    var checkingUpdates by remember { mutableStateOf(false) }
     var showAssistant by remember { mutableStateOf(false) }
     var eqPresetNames by remember { mutableStateOf(listOf<String>()) }
     var selectedEqPreset by remember { mutableIntStateOf(-1) }
@@ -885,6 +888,60 @@ fun MrPerfectApp() {
                         Text("Playback notification includes Previous, Play/Pause and Next controls. Lock-screen display depends on Android device settings and notification permission.", fontSize = 12.sp, color = Muted)
                         Text("Free online search is limited to tracks marked Creative Commons / Public Domain. A commercial licensed catalog needs a provider account and API credentials before it can be enabled.", fontSize = 12.sp, color = Muted)
                         Text("Phone MP3 files play locally in full. Background playback reliability still needs a dedicated foreground playback service and device testing.", fontSize = 12.sp, color = Muted)
+                        Divider(color = PanelLight)
+                        Text("App Updates", color = Red, fontWeight = FontWeight.Bold)
+                        Text(updateMessage, fontSize = 12.sp, color = Muted)
+                        Button(
+                            onClick = {
+                                if (!checkingUpdates) {
+                                    checkingUpdates = true
+                                    updateMessage = "Checking for updates…"
+                                    updateUrl = null
+                                    scope.launch {
+                                        val result = withContext(Dispatchers.IO) {
+                                            runCatching {
+                                                val connection = (URL("https://api.github.com/repos/Mrperfectyadav007/Mr-perfect-yadav-_07/releases/latest").openConnection() as HttpURLConnection)
+                                                connection.connectTimeout = 10000
+                                                connection.readTimeout = 10000
+                                                connection.setRequestProperty("Accept", "application/vnd.github+json")
+                                                try {
+                                                    if (connection.responseCode != 200) {
+                                                        "NO_RELEASE" to null
+                                                    } else {
+                                                        val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                                                        json.optString("tag_name", "latest") to json.optString("html_url").takeIf { it.startsWith("https://") }
+                                                    }
+                                                } finally { connection.disconnect() }
+                                            }
+                                        }
+                                        checkingUpdates = false
+                                        result.onSuccess { (tag, url) ->
+                                            if (tag == "NO_RELEASE" || url == null) {
+                                                updateMessage = "No published update is available yet."
+                                            } else {
+                                                updateMessage = "Latest release: $tag. Open the release page to download and install."
+                                                updateUrl = url
+                                            }
+                                        }.onFailure {
+                                            updateMessage = "Could not check updates. Please try again later."
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = !checkingUpdates,
+                            colors = ButtonDefaults.buttonColors(containerColor = Blue, contentColor = White)
+                        ) {
+                            if (checkingUpdates) CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp), color = White, strokeWidth = 2.dp
+                            ) else Icon(Icons.Default.SystemUpdate, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (checkingUpdates) "Checking…" else "Check for Updates")
+                        }
+                        if (updateUrl != null) {
+                            TextButton(onClick = { openLink(context, updateUrl!!) }) {
+                                Text("Open APK Update", color = Green)
+                            }
+                        }
                         Text("About MR. PERFECT YADAV", color = Red, fontWeight = FontWeight.Bold)
                         Text("Premium red-and-black music player", fontSize = 12.sp)
                     }
