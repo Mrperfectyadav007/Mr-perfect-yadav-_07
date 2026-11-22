@@ -1087,11 +1087,12 @@ class MusicActionReceiver : BroadcastReceiver() {
 }
 
 private fun enqueuePermittedDownload(context: Context, uri: Uri, title: String): String {
-    if (uri.scheme != "https" || uri.host?.endsWith("archive.org") != true) {
+    if (uri.scheme != "https" || !(uri.host == "archive.org" || uri.host?.endsWith(".archive.org") == true)) {
         return "Download is allowed only for eligible catalogue tracks."
     }
     return runCatching {
-        val safeName = title.replace(Regex("[^A-Za-z0-9._ -]"), "_").take(70).ifBlank { "audio-track" } + ".mp3"
+        val extension = uri.lastPathSegment?.substringAfterLast(".", "mp3")?.lowercase()?.takeIf { it in setOf("mp3", "m4a", "ogg") } ?: "mp3"
+        val safeName = title.replace(Regex("[^A-Za-z0-9._ -]"), "_").take(70).ifBlank { "audio-track" } + ".$extension"
         val request = DownloadManager.Request(uri)
             .setTitle(safeName)
             .setDescription("MR. PERFECT YADAV Music — check the track license before reuse")
