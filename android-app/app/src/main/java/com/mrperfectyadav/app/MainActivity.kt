@@ -71,7 +71,8 @@ private val PanelLight = Color(0xFF1B2A38)
 private val Green = Color(0xFF20D67B)
 private val Blue = Color(0xFF328BFF)
 private val Red = Color(0xFFFF4057)
-private val BrandGradient = listOf(Green, Blue, Red)
+private val Purple = Color(0xFF9B5CFF)
+private val BrandGradient = listOf(Green, Blue, Purple, Red)
 private val White = Color(0xFFF7FAFF)
 private val Muted = Color(0xFFB8C5D3)
 
@@ -291,7 +292,7 @@ fun MrPerfectApp() {
     }
 
     MaterialTheme(colorScheme = darkColorScheme(
-        primary = Blue, secondary = Green, tertiary = Red,
+        primary = Blue, secondary = Green, tertiary = Purple,
         background = Black, surface = Panel,
         onPrimary = White, onBackground = White, onSurface = White
     )) {
@@ -321,7 +322,7 @@ fun MrPerfectApp() {
             Box(
                 Modifier.fillMaxSize().background(
                     Brush.verticalGradient(
-                        listOf(Color(0xB8080808), Color(0xD9080808), Color(0xF2080808))
+                        listOf(Color(0xB8081714), Color(0xD90C1020), Color(0xF2180B19))
                     )
                 )
             )
@@ -378,7 +379,7 @@ fun MrPerfectApp() {
                     ) {
                         Box(
                             Modifier.fillMaxSize().background(
-                                Brush.linearGradient(listOf(Color(0xFF123D2D), Color(0xFF12365E), Color(0xFF4A1727), Color(0xFF101923)))
+                                Brush.linearGradient(listOf(Color(0xFF123D2D), Color(0xFF12365E), Color(0xFF39205A), Color(0xFF4A1727), Color(0xFF101923)))
                             ).padding(20.dp)
                         ) {
                             Column(Modifier.align(Alignment.CenterStart)) {
@@ -1265,7 +1266,7 @@ private fun SmallLinkCard(
                 Text(title, color = White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Text(subtitle, color = Muted, fontSize = 11.sp)
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Red)
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Blue)
         }
     }
 }
