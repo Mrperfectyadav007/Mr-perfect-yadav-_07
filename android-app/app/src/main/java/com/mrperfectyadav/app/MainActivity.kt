@@ -449,13 +449,13 @@ fun MrPerfectApp() {
                                 Text("Open Video")
                             }
                             Divider(color = PanelLight)
-                            Text("Download files you own or are licensed to download (Archive.org direct media links only). Check the file license first.", color = Muted, fontSize = 12.sp)
+                            Text("Paste a direct HTTPS link to a media file you own or are authorized to download. Supported: MP3, M4A, OGG, MP4, WEBM.", color = Muted, fontSize = 12.sp)
                             OutlinedTextField(
                                 value = permittedFileUrl,
                                 onValueChange = { permittedFileUrl = it },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
-                                placeholder = { Text("Paste permitted Archive.org media file link") },
+                                placeholder = { Text("Paste direct media file URL") },
                                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = White, unfocusedTextColor = White, focusedBorderColor = Green, unfocusedBorderColor = PanelLight)
                             )
                             Button(
@@ -1197,15 +1197,17 @@ class MusicActionReceiver : BroadcastReceiver() {
 }
 
 private fun enqueuePermittedDownload(context: Context, uri: Uri, title: String): String {
-    if (uri.scheme != "https" || !(uri.host == "archive.org" || uri.host?.endsWith(".archive.org") == true)) {
-        return "Download is allowed only for eligible catalogue tracks."
+    if (uri.scheme != "https" || uri.host.isNullOrBlank()) {
+        return "Please use a valid HTTPS direct file URL."
     }
     return runCatching {
-        val extension = uri.lastPathSegment?.substringAfterLast(".", "mp3")?.lowercase()?.takeIf { it in setOf("mp3", "m4a", "ogg", "mp4", "webm") } ?: return "Link must point to an MP3, M4A, OGG, MP4 or WEBM file."
-        val safeName = title.replace(Regex("[^A-Za-z0-9._ -]"), "_").take(70).ifBlank { "audio-track" } + ".$extension"
+        val extension = uri.path?.substringAfterLast(".", "")?.lowercase()
+            ?.takeIf { it in setOf("mp3", "m4a", "ogg", "mp4", "webm") }
+            ?: return "URL must directly point to an MP3, M4A, OGG, MP4 or WEBM file."
+        val safeName = title.replace(Regex("[^A-Za-z0-9._ -]"), "_").take(70).ifBlank { "media-file" } + ".$extension"
         val request = DownloadManager.Request(uri)
             .setTitle(safeName)
-            .setDescription("MR. PERFECT YADAV Music — check the track license before reuse")
+            .setDescription("MR. PERFECT YADAV Music — download only files you are authorized to use")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, safeName)
             .setAllowedOverMetered(true)
