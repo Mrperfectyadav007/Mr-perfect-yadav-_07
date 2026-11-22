@@ -479,6 +479,24 @@ fun MrPerfectApp() {
                                 Text("Download permitted file")
                             }
                             if (downloadMessage.isNotBlank()) Text(downloadMessage, color = Green, fontSize = 12.sp)
+                            OutlinedButton(
+                                onClick = {
+                                    runCatching {
+                                        context.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS))
+                                    }.onFailure {
+                                        downloadMessage = "Downloads app could not be opened. Check the phone's Downloads folder."
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.FolderOpen, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Open Download Manager")
+                            }
+                            Text(
+                                "Download notifications and completed files are managed by Android. Find saved media in Downloads.",
+                                color = Muted, fontSize = 11.sp
+                            )
                         }
                     }
                 }
