@@ -9,11 +9,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.mrperfectyadav.app"
+        applicationId = "com.mrperfectyadav.musicplayer"
         minSdk = 23
         targetSdk = 36
-        versionCode = 5
-        versionName = "5.0 Premium"
+        versionCode = 1
+        versionName = "1.0 Music"
     }
 
     buildFeatures {
