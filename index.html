@@ -119,7 +119,7 @@ async function send(){
 }
 $('send').onclick=send;$('prompt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
 $('mic').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('इस Chrome में voice input उपलब्ध नहीं है।');return}const r=new SR();r.lang='hi-IN';r.interimResults=false;r.onresult=e=>{$('prompt').value=e.results[0][0].transcript;$('prompt').focus()};r.onerror=()=>alert('Voice input शुरू नहीं हो पाया। Chrome में microphone permission दें।');r.start()};
-let wakeRecognition=null,wakeActive=false,waitingForCommand=false,wakeRestartTimer=null,wakeSpeaking=false,wakeStarting=false;
+let wakeRecognition=null,wakeActive=false,waitingForCommand=false,wakeRestartTimer=null,wakeSpeaking=false,wakeStarting=false,wakeStartWatchdog=null;
 function wakeButton(){
  $('wakeToggle').textContent=wakeActive?'🟢 Hey Jarvis: चालू':'⚪ Hey Jarvis: बंद';
  $('status').textContent=wakeActive?(waitingForCommand?'● आदेश बोलिए…':'● Hey Jarvis सुन रहा हूँ…'):'● Ready';
@@ -130,8 +130,9 @@ function scheduleWakeRestart(delay=700){
  wakeRestartTimer=setTimeout(()=>{
   if(!wakeActive)return;
   if(wakeSpeaking){scheduleWakeRestart(1200);return}
-  // A late onend event can leave the start lock stuck; clear it before retrying.
+  // Reset a stale start lock before every retry.
   wakeStarting=false;
+  $('status').textContent='● 🎙️ Mic फिर से चालू करने की कोशिश…';
   startWakeCycle();
  },delay);
 }
@@ -139,13 +140,17 @@ function startWakeCycle(){
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!wakeActive||wakeSpeaking||wakeStarting||!SR)return;
  wakeStarting=true;
+ clearTimeout(wakeStartWatchdog);
  const rec=new SR();
+ wakeStartWatchdog=setTimeout(()=>{
+  if(wakeActive&&wakeStarting){wakeStarting=false;$('status').textContent='● Mic शुरू नहीं हुआ — दोबारा कोशिश…';scheduleWakeRestart(1200)}
+ },3000);
  wakeRecognition=rec;
  rec.lang=localStorage.getItem('jarvis_voice_lang')||'hi-IN';
  rec.continuous=false;
  rec.interimResults=false;
  rec.maxAlternatives=1;
- rec.onstart=()=>{wakeStarting=false;wakeButton();$('status').textContent=waitingForCommand?'● 🎙️ अब बोलिए…':'● 🎙️ Hey Jarvis सुन रहा है…'};
+ rec.onstart=()=>{clearTimeout(wakeStartWatchdog);wakeStarting=false;wakeButton();$('status').textContent=waitingForCommand?'● 🎙️ अब बोलिए…':'● 🎙️ Hey Jarvis सुन रहा है…'};
  rec.onresult=e=>{
   const said=(e.results?.[0]?.[0]?.transcript||'').trim();
   if(!said)return;
@@ -170,19 +175,21 @@ function startWakeCycle(){
   }
  };
  rec.onerror=e=>{
+  clearTimeout(wakeStartWatchdog);
   wakeStarting=false;
   $('status').textContent='● 🎙️ Mic error: '+e.error;
   if(e.error==='not-allowed'||e.error==='service-not-allowed'){
    wakeActive=false;waitingForCommand=false;localStorage.removeItem('jarvis_wake_enabled');wakeButton();
    $('status').textContent='● Chrome में Microphone Allow करें';
-  }
+  }else if(wakeActive&&!wakeSpeaking){scheduleWakeRestart(1200)}
  };
  rec.onend=()=>{
+  clearTimeout(wakeStartWatchdog);
   wakeStarting=false;
   if(wakeActive&&!wakeSpeaking){$('status').textContent='● Mic बंद हुआ — फिर से शुरू कर रहा हूँ…';scheduleWakeRestart(900)}
   else if(wakeActive&&wakeSpeaking){$('status').textContent='● JARVIS जवाब बोल रहा है…'}
  };
- try{rec.start()}catch(e){wakeStarting=false;$('status').textContent='● Mic start error: '+(e.message||e);scheduleWakeRestart(1400)}
+ try{rec.start()}catch(e){clearTimeout(wakeStartWatchdog);wakeStarting=false;$('status').textContent='● Mic start error: '+(e.message||e);scheduleWakeRestart(1400)}
 }
 function startWakeListening(automatic=false){
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
