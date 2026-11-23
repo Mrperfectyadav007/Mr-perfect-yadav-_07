@@ -122,7 +122,7 @@ $('mic').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechReco
 let wakeRecognition=null,wakeActive=false,waitingForCommand=false,wakeRestartTimer=null,wakeSpeaking=false,wakeStarting=false;
 function wakeButton(){
  $('wakeToggle').textContent=wakeActive?'🟢 Hey Jarvis: चालू':'⚪ Hey Jarvis: बंद';
- $('status').textContent=wakeActive?(waitingForCommand?'● आपकी बात सुन रहा हूँ…':'● Jarvis standby'):'● Ready';
+ $('status').textContent=wakeActive?(waitingForCommand?'● आदेश बोलिए…':'● Hey Jarvis सुन रहा हूँ…'):'● Ready';
 }
 function scheduleWakeRestart(delay=700){
  clearTimeout(wakeRestartTimer);
@@ -145,7 +145,7 @@ function startWakeCycle(){
   if(!said)return;
   const wake=/jarvis|जार्विस|जारविस/i.test(said);
   if(wake){
-   const command=said.replace(/hey\\s*jarvis|jarvis|हे?\\s*जार्विस|जारविस/ig,'').trim();
+   const command=said.replace(/hey\\s*jarvis|jarvis|हे?\\s*जार्विस|जारविस/ig,'').replace(/^[,\\s.!?]+|[,\\s.!?]+$/g,'').trim();
    if(command){waitingForCommand=false;$('prompt').value=command;send()}
    else{waitingForCommand=true;wakeButton();speakText('जी, बताइए।')}
   }else if(waitingForCommand){
