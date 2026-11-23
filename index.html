@@ -146,14 +146,21 @@ function startWakeCycle(){
   const wake=/jarvis|जार्विस|जारविस/i.test(said);
   if(wake){
    const command=said.replace(/hey\s*jarvis|jarvis|हे?\s*जार्विस|जारविस/ig,'').replace(/^[,\s.!?]+|[,\s.!?]+$/g,'').trim();
-   if(command){waitingForCommand=false;$('prompt').value=command;send()}
+   const filler=/^(सुन रहा हूं|सुन रहा हूँ|सुन रहा है|सुन रही हूं|सुन रही हूँ|listening|हैलो|hello)$/i.test(command);
+   if(command&&!filler){waitingForCommand=false;$('prompt').value=command;send()}
    else{
-   waitingForCommand=true;
-   wakeButton();
-   speakText('जी, बताइए।');
-   // Safety restart: if speech synthesis does not fire onend, resume listening.
-   setTimeout(()=>{if(wakeActive&&waitingForCommand&&!wakeSpeaking&&!wakeStarting)scheduleWakeRestart(300)},2500);
-  }
+    waitingForCommand=true;
+    wakeButton();
+    speakText('जी, बताइए।');
+    // Restart recognition after the spoken acknowledgement has finished.
+    setTimeout(()=>{
+     if(wakeActive&&waitingForCommand&&!wakeStarting){
+      wakeSpeaking=false;
+      try{if(wakeRecognition)wakeRecognition.abort()}catch{}
+      scheduleWakeRestart(500);
+     }
+    },3200);
+   }
   }else if(waitingForCommand){
    waitingForCommand=false;
    $('prompt').value=said;
