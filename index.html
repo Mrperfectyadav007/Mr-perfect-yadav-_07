@@ -101,7 +101,7 @@ async function send(){
    const model=localStorage.getItem('jarvis_model')||'gemini-3.8-flash';
    const url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent';
    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},signal:controller.signal,body:JSON.stringify({
-    systemInstruction:{parts:[{text:'आप JARVIS हैं। '+(localStorage.getItem('jarvis_persona')==='mentor'?'आप धैर्यवान शिक्षक हैं।':localStorage.getItem('jarvis_persona')==='friend'?'आप दोस्ताना और सहज हैं।':localStorage.getItem('jarvis_persona')==='expert'?'आप विशेषज्ञ की तरह सटीक और संक्षिप्त हैं।':'आप मददगार personal assistant हैं।')+' उपयोगकर्ता की दी गई Memory का ध्यान रखें। स्पष्ट, सही और उपयोगी उत्तर दें। प्रश्न की भाषा में स्वाभाविक जवाब दें। केवल सोचते न रहें—सीधा उत्तर दें।'}]},
+    systemInstruction:{parts:[{text:'आपका नाम MR. PERFECT YADAV JARVIS है। आप यूज़र के पर्सनल AI असिस्टेंट हैं। जब भी यूज़र आपका नाम, पहचान या परिचय पूछे, जवाब हमेशा यह दें: मेरा नाम MR. PERFECT YADAV JARVIS है। मैं आपका पर्सनल AI असिस्टेंट हूँ। अपना नाम ChatGPT न बताएं। '+(localStorage.getItem('jarvis_persona')==='mentor'?'आप धैर्यवान शिक्षक हैं।':localStorage.getItem('jarvis_persona')==='friend'?'आप दोस्ताना और सहज हैं।':localStorage.getItem('jarvis_persona')==='expert'?'आप विशेषज्ञ की तरह सटीक और संक्षिप्त हैं।':'आप मददगार personal assistant हैं।')+' उपयोगकर्ता की दी गई Memory का ध्यान रखें। स्पष्ट, सही और उपयोगी उत्तर दें। प्रश्न की भाषा में स्वाभाविक जवाब दें। केवल सोचते न रहें—सीधा उत्तर दें।'}]},
     contents:[{role:'user',parts:[{text:full}]}],
     generationConfig:{maxOutputTokens:1200,temperature:0.7}
    })});
