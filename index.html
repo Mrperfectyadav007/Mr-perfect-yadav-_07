@@ -126,8 +126,14 @@ function wakeButton(){
 }
 function scheduleWakeRestart(delay=700){
  clearTimeout(wakeRestartTimer);
- if(!wakeActive||wakeSpeaking)return;
- wakeRestartTimer=setTimeout(()=>{if(wakeActive&&!wakeSpeaking)startWakeCycle()},delay);
+ if(!wakeActive)return;
+ wakeRestartTimer=setTimeout(()=>{
+  if(!wakeActive)return;
+  if(wakeSpeaking){scheduleWakeRestart(1200);return}
+  // A late onend event can leave the start lock stuck; clear it before retrying.
+  wakeStarting=false;
+  startWakeCycle();
+ },delay);
 }
 function startWakeCycle(){
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
