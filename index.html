@@ -152,14 +152,9 @@ function startWakeCycle(){
     waitingForCommand=true;
     wakeButton();
     speakText('जी, बताइए।');
-    // Restart recognition after the spoken acknowledgement has finished.
-    setTimeout(()=>{
-     if(wakeActive&&waitingForCommand&&!wakeStarting){
-      wakeSpeaking=false;
-      try{if(wakeRecognition)wakeRecognition.abort()}catch{}
-      scheduleWakeRestart(500);
-     }
-    },3200);
+    // speakText() restarts recognition from the utterance's onend/onerror event.
+    // Do not force-abort the microphone with a fixed timeout: it can cut off the
+    // acknowledgement or race the next recognition session.
    }
   }else if(waitingForCommand){
    waitingForCommand=false;
