@@ -186,8 +186,10 @@ function startWakeCycle(){
  rec.onend=()=>{
   clearTimeout(wakeStartWatchdog);
   wakeStarting=false;
-  if(wakeActive&&!wakeSpeaking){$('status').textContent='● Mic बंद हुआ — फिर से शुरू कर रहा हूँ…';scheduleWakeRestart(900)}
-  else if(wakeActive&&wakeSpeaking){$('status').textContent='● JARVIS जवाब बोल रहा है…'}
+  if(wakeActive){
+   if(wakeSpeaking){$('status').textContent='● JARVIS जवाब बोल रहा है…';scheduleWakeRestart(1200)}
+   else{$('status').textContent=waitingForCommand?'● 🎙️ आदेश सुनने के लिए माइक फिर चालू हो रहा है…':'● 🎙️ Hey Jarvis फिर सुन रहा है…';scheduleWakeRestart(600)}
+  }
  };
  try{rec.start()}catch(e){clearTimeout(wakeStartWatchdog);wakeStarting=false;$('status').textContent='● Mic start error: '+(e.message||e);scheduleWakeRestart(1400)}
 }
