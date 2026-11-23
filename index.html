@@ -63,7 +63,7 @@ $('showKey').onclick=()=> $('apiKey').type=$('apiKey').type==='password'?'text':
 $('saveNote').onclick=()=>{const title=$('noteTitle').value.trim(),body=$('noteBody').value.trim();if(!body){alert('नोट लिखें।');return}let a=getNotes();a.unshift({title:title||'बिना शीर्षक',body});localStorage.setItem('jarvis_notes',JSON.stringify(a));$('noteTitle').value='';$('noteBody').value='';renderNotes()};
 $('files').onchange=()=>{const fs=[...$('files').files];$('fileList').innerHTML=fs.map(f=>'<div class="item"><strong>'+esc(f.name)+'</strong><p>'+esc(f.type||'Unknown type')+' · '+(f.size/1024).toFixed(1)+' KB</p></div>').join('')};
 function addMsg(text,who){const d=document.createElement('div');d.className='msg '+who;d.textContent=text;$('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;return d}
-let lastAnswer='';let autoVoice=localStorage.getItem('jarvis_auto_voice')==='1';function updateVoiceButton(){$('voiceToggle').textContent=autoVoice?'🔊 Auto Voice: चालू':'🔈 Auto Voice: बंद'}function speakText(text){if(!('speechSynthesis'in window)){alert('इस ब्राउज़र में आवाज़ सुनाने की सुविधा उपलब्ध नहीं है।');return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=localStorage.getItem('jarvis_voice_lang')||(/[ऀ-ॿ]/.test(text)?'hi-IN':'en-IN');u.rate=Number(localStorage.getItem('jarvis_voice_rate')||1);u.pitch=1;speechSynthesis.speak(u)}$('speakLast').onclick=()=>{if(lastAnswer)speakText(lastAnswer);else alert('पहले AI से कोई जवाब लें।')};$('voiceToggle').onclick=()=>{autoVoice=!autoVoice;localStorage.setItem('jarvis_auto_voice',autoVoice?'1':'0');updateVoiceButton();if(!autoVoice&&'speechSynthesis'in window)speechSynthesis.cancel()};updateVoiceButton();
+let lastAnswer='';let autoVoice=localStorage.getItem('jarvis_auto_voice')==='1';function updateVoiceButton(){$('voiceToggle').textContent=autoVoice?'🔊 Auto Voice: चालू':'🔈 Auto Voice: बंद'}function speakText(text){if(!('speechSynthesis'in window)){alert('इस ब्राउज़र में आवाज़ सुनाने की सुविधा उपलब्ध नहीं है।');return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=localStorage.getItem('jarvis_voice_lang')||(/[ऀ-ॿ]/.test(text)?'hi-IN':'en-IN');u.rate=Number(localStorage.getItem('jarvis_voice_rate')||1);u.pitch=1;if(typeof wakeActive!=='undefined'&&wakeActive){wakeSpeaking=true;u.onend=()=>{wakeSpeaking=false;scheduleWakeRestart(900)};u.onerror=()=>{wakeSpeaking=false;scheduleWakeRestart(900)}}speechSynthesis.speak(u)}$('speakLast').onclick=()=>{if(lastAnswer)speakText(lastAnswer);else alert('पहले AI से कोई जवाब लें।')};$('voiceToggle').onclick=()=>{autoVoice=!autoVoice;localStorage.setItem('jarvis_auto_voice',autoVoice?'1':'0');updateVoiceButton();if(!autoVoice&&'speechSynthesis'in window)speechSynthesis.cancel()};updateVoiceButton();
 async function send(){
  const q=$('prompt').value.trim();
  if(!q)return;
@@ -119,58 +119,68 @@ async function send(){
 }
 $('send').onclick=send;$('prompt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
 $('mic').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('इस Chrome में voice input उपलब्ध नहीं है।');return}const r=new SR();r.lang='hi-IN';r.interimResults=false;r.onresult=e=>{$('prompt').value=e.results[0][0].transcript;$('prompt').focus()};r.onerror=()=>alert('Voice input शुरू नहीं हो पाया। Chrome में microphone permission दें।');r.start()};
-let wakeRecognition=null,wakeActive=false,waitingForCommand=false,wakeRestartTimer=null;
+let wakeRecognition=null,wakeActive=false,waitingForCommand=false,wakeRestartTimer=null,wakeSpeaking=false,wakeStarting=false;
 function wakeButton(){
  $('wakeToggle').textContent=wakeActive?'🟢 Hey Jarvis: चालू':'⚪ Hey Jarvis: बंद';
- $('status').textContent=wakeActive?(waitingForCommand?'● Jarvis सुन रहा है…':'● Jarvis standby'):'● Ready';
+ $('status').textContent=wakeActive?(waitingForCommand?'● आपकी बात सुन रहा हूँ…':'● Jarvis standby'):'● Ready';
+}
+function scheduleWakeRestart(delay=700){
+ clearTimeout(wakeRestartTimer);
+ if(!wakeActive||wakeSpeaking)return;
+ wakeRestartTimer=setTimeout(()=>{if(wakeActive&&!wakeSpeaking)startWakeCycle()},delay);
+}
+function startWakeCycle(){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!wakeActive||wakeSpeaking||wakeStarting||!SR)return;
+ wakeStarting=true;
+ const rec=new SR();
+ wakeRecognition=rec;
+ rec.lang=localStorage.getItem('jarvis_voice_lang')||'hi-IN';
+ rec.continuous=false;
+ rec.interimResults=false;
+ rec.maxAlternatives=1;
+ rec.onstart=()=>{wakeStarting=false;wakeButton()};
+ rec.onresult=e=>{
+  const said=(e.results?.[0]?.[0]?.transcript||'').trim();
+  if(!said)return;
+  const wake=/jarvis|जार्विस|जारविस/i.test(said);
+  if(wake){
+   const command=said.replace(/hey\\s*jarvis|jarvis|हे?\\s*जार्विस|जारविस/ig,'').trim();
+   if(command){waitingForCommand=false;$('prompt').value=command;send()}
+   else{waitingForCommand=true;wakeButton();speakText('जी, बताइए।')}
+  }else if(waitingForCommand){
+   waitingForCommand=false;$('prompt').value=said;send();wakeButton();
+  }
+ };
+ rec.onerror=e=>{
+  wakeStarting=false;
+  if(e.error==='not-allowed'||e.error==='service-not-allowed'){
+   wakeActive=false;waitingForCommand=false;localStorage.removeItem('jarvis_wake_enabled');wakeButton();
+   $('status').textContent='● Chrome में Microphone Allow करें';
+  }
+ };
+ rec.onend=()=>{
+  wakeStarting=false;
+  if(wakeActive&&!wakeSpeaking)scheduleWakeRestart(900);
+ };
+ try{rec.start()}catch(e){wakeStarting=false;scheduleWakeRestart(1400)}
 }
 function startWakeListening(automatic=false){
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!SR){wakeActive=false;wakeButton();if(!automatic)alert('Wake Word के लिए Chrome Speech Recognition सपोर्ट चाहिए।');return false}
+ if(!SR){wakeActive=false;wakeButton();if(!automatic)alert('इस Chrome में Speech Recognition उपलब्ध नहीं है।');return false}
  if(wakeActive)return true;
- wakeActive=true;waitingForCommand=false;autoVoice=true;
- localStorage.setItem('jarvis_auto_voice','1');updateVoiceButton();
- wakeRecognition=new SR();wakeRecognition.lang=localStorage.getItem('jarvis_voice_lang')||'hi-IN';
- wakeRecognition.continuous=true;wakeRecognition.interimResults=false;
- wakeRecognition.onresult=e=>{
-  for(let i=e.resultIndex;i<e.results.length;i++){
-   if(!e.results[i].isFinal)continue;
-   const said=e.results[i][0].transcript.trim(),lower=said.toLowerCase();
-   const wake=/\bjarvis\b|जार्विस|जारविस|हे जार्विस|hey jarvis/.test(lower);
-   if(wake){
-    const command=said.replace(/hey\s*jarvis|jarvis|हे?\s*जार्विस|जारविस/ig,'').trim();
-    if(command){$('prompt').value=command;waitingForCommand=false;send()}
-    else{waitingForCommand=true;speakText('जी, बताइए।')}
-    wakeButton();
-   }else if(waitingForCommand){$('prompt').value=said;waitingForCommand=false;send();wakeButton()}
-  }
- };
- wakeRecognition.onerror=e=>{
-  if(e.error==='not-allowed'||e.error==='service-not-allowed'){
-   wakeActive=false;waitingForCommand=false;wakeButton();
-   $('status').textContent='● Microphone permission दें';
-  }
- };
- wakeRecognition.onend=()=>{
-  if(wakeActive){wakeButton();clearTimeout(wakeRestartTimer);wakeRestartTimer=setTimeout(()=>{if(wakeActive){try{wakeRecognition.start()}catch{}}},700)}
- };
- try{wakeRecognition.start();wakeButton();return true}
- catch(e){wakeActive=false;wakeButton();if(!automatic)alert('Wake Word शुरू नहीं हो पाया। Microphone permission जाँचें।');return false}
+ wakeActive=true;waitingForCommand=false;wakeSpeaking=false;autoVoice=true;
+ localStorage.setItem('jarvis_auto_voice','1');localStorage.setItem('jarvis_wake_enabled','1');updateVoiceButton();wakeButton();
+ startWakeCycle();return true;
 }
 function stopWakeListening(){
- wakeActive=false;waitingForCommand=false;clearTimeout(wakeRestartTimer);
- try{wakeRecognition&&wakeRecognition.stop()}catch{}
+ wakeActive=false;waitingForCommand=false;wakeSpeaking=false;wakeStarting=false;clearTimeout(wakeRestartTimer);
+ try{if(wakeRecognition)wakeRecognition.abort()}catch{}
  if('speechSynthesis'in window)speechSynthesis.cancel();
  wakeButton();
 }
-$('wakeToggle').onclick=()=>{
- if(wakeActive){localStorage.removeItem('jarvis_wake_enabled');stopWakeListening();return}
- localStorage.setItem('jarvis_wake_enabled','1');
- startWakeListening(false);
-};
-if(localStorage.getItem('jarvis_wake_enabled')==='1'){
- setTimeout(()=>{if(!startWakeListening(true))$('status').textContent='● Hey Jarvis बटन दबाएँ'},1200);
-}
+$('wakeToggle').onclick=()=>{if(wakeActive){localStorage.removeItem('jarvis_wake_enabled');stopWakeListening()}else startWakeListening(false)};
+if(localStorage.getItem('jarvis_wake_enabled')==='1')setTimeout(()=>startWakeListening(true),1200);
 renderNotes();
 $('memoryName').value=localStorage.getItem('jarvis_memory_name')||'';$('memoryFacts').value=localStorage.getItem('jarvis_memory_facts')||'';$('persona').value=localStorage.getItem('jarvis_persona')||'assistant';$('customPersona').value=localStorage.getItem('jarvis_custom_persona')||'';$('voiceLang').value=localStorage.getItem('jarvis_voice_lang')||'hi-IN';$('voiceRate').value=localStorage.getItem('jarvis_voice_rate')||'1';
 $('saveMemory').onclick=()=>{localStorage.setItem('jarvis_memory_name',$('memoryName').value.trim());localStorage.setItem('jarvis_memory_facts',$('memoryFacts').value.trim());localStorage.setItem('jarvis_memory',$('memoryName').value.trim()+'; '+$('memoryFacts').value.trim());alert('Memory इसी ब्राउज़र में सेव हो गई।')};$('clearMemory').onclick=()=>{['jarvis_memory','jarvis_memory_name','jarvis_memory_facts'].forEach(k=>localStorage.removeItem(k));$('memoryName').value='';$('memoryFacts').value='';alert('Memory मिटा दी गई।')};$('saveCharacter').onclick=()=>{localStorage.setItem('jarvis_persona',$('persona').value);localStorage.setItem('jarvis_custom_persona',$('customPersona').value.trim());alert('Character सेव हो गया।')};$('saveBehaviour').onclick=()=>{localStorage.setItem('jarvis_voice_lang',$('voiceLang').value);localStorage.setItem('jarvis_voice_rate',$('voiceRate').value);alert('Voice Settings सेव हो गईं।')};document.querySelectorAll('.skill').forEach(b=>b.onclick=()=>{document.querySelector('[data-tab="chat"]').click();$('prompt').value=b.dataset.skill;$('prompt').focus()});
