@@ -147,9 +147,18 @@ function startWakeCycle(){
   if(wake){
    const command=said.replace(/hey\s*jarvis|jarvis|हे?\s*जार्विस|जारविस/ig,'').replace(/^[,\s.!?]+|[,\s.!?]+$/g,'').trim();
    if(command){waitingForCommand=false;$('prompt').value=command;send()}
-   else{waitingForCommand=true;wakeButton();speakText('जी, बताइए।')}
+   else{
+   waitingForCommand=true;
+   wakeButton();
+   speakText('जी, बताइए।');
+   // Safety restart: if speech synthesis does not fire onend, resume listening.
+   setTimeout(()=>{if(wakeActive&&waitingForCommand&&!wakeSpeaking&&!wakeStarting)scheduleWakeRestart(300)},2500);
+  }
   }else if(waitingForCommand){
-   waitingForCommand=false;$('prompt').value=said;send();wakeButton();
+   waitingForCommand=false;
+   $('prompt').value=said;
+   wakeButton();
+   send();
   }
  };
  rec.onerror=e=>{
